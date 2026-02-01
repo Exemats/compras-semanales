@@ -1,0 +1,1123 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>🛒 Compras Paulina</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        :root {
+            --primary: #CF1015;
+            --primary-dark: #a00d11;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --info: #3b82f6;
+            --bg: #f5f5f5;
+            --card-bg: #ffffff;
+            --text: #333333;
+            --text-light: #666666;
+            --border: #e0e0e0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding-bottom: 70px;
+        }
+
+        /* ==================== HEADER ==================== */
+        .header {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            padding: 14px 16px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header h1 {
+            font-size: 1.1rem;
+        }
+
+        .header .subtitle {
+            font-size: 0.75rem;
+            opacity: 0.9;
+        }
+
+        /* ==================== QUICK REGISTER ==================== */
+        .quick-register {
+            background: linear-gradient(135deg, #1e3a5f, #2d5a87);
+            padding: 16px;
+            color: white;
+            position: sticky;
+            top: 52px;
+            z-index: 99;
+        }
+
+        .register-row {
+            display: flex;
+            gap: 8px;
+        }
+
+        .register-input {
+            flex: 1;
+            padding: 14px 16px;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            background: white;
+            color: var(--text);
+        }
+
+        .register-input::placeholder {
+            color: #999;
+        }
+
+        .register-input:focus {
+            outline: 2px solid var(--success);
+        }
+
+        .btn-register {
+            padding: 14px 20px;
+            background: var(--success);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .btn-voice {
+            padding: 14px 16px;
+            background: var(--info);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            cursor: pointer;
+        }
+
+        .btn-voice.recording {
+            background: #dc3545;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .register-hint {
+            font-size: 0.75rem;
+            opacity: 0.85;
+            margin-top: 10px;
+        }
+
+        .register-hint code {
+            background: rgba(255,255,255,0.2);
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+
+        /* Match Preview */
+        .match-preview {
+            background: rgba(34, 197, 94, 0.2);
+            border: 1px solid rgba(34, 197, 94, 0.5);
+            border-radius: 8px;
+            padding: 10px 12px;
+            margin-top: 12px;
+            display: none;
+        }
+
+        .match-preview.active {
+            display: block;
+        }
+
+        .match-preview.no-match {
+            background: rgba(245, 158, 11, 0.2);
+            border-color: rgba(245, 158, 11, 0.5);
+        }
+
+        .match-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 0;
+            font-size: 0.9rem;
+        }
+
+        .match-item .product {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .match-item .status {
+            font-size: 0.75rem;
+            padding: 2px 8px;
+            border-radius: 4px;
+            background: rgba(255,255,255,0.3);
+        }
+
+        .match-item .price {
+            font-weight: bold;
+            color: #4ade80;
+        }
+
+        /* ==================== TOTALS BAR ==================== */
+        .totals-bar {
+            display: flex;
+            background: var(--card-bg);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .total-box {
+            flex: 1;
+            padding: 12px;
+            text-align: center;
+            border-right: 1px solid var(--border);
+        }
+
+        .total-box:last-child {
+            border-right: none;
+        }
+
+        .total-box .value {
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: var(--success);
+        }
+
+        .total-box .value.pending {
+            color: var(--warning);
+        }
+
+        .total-box .label {
+            font-size: 0.7rem;
+            color: var(--text-light);
+            text-transform: uppercase;
+        }
+
+        /* ==================== LIST TABS ==================== */
+        .list-tabs {
+            display: flex;
+            padding: 8px 16px;
+            gap: 8px;
+            background: var(--card-bg);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .list-tab {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            background: #f0f0f0;
+            color: var(--text);
+        }
+
+        .list-tab.active {
+            background: var(--primary);
+            color: white;
+        }
+
+        /* ==================== SHOPPING LIST ==================== */
+        .list-container {
+            padding: 12px;
+        }
+
+        .category {
+            background: var(--card-bg);
+            border-radius: 12px;
+            margin-bottom: 10px;
+            overflow: hidden;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+        }
+
+        .category-header {
+            padding: 12px 14px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #f8f9fa;
+            cursor: pointer;
+        }
+
+        .category-header .count {
+            margin-left: auto;
+            font-size: 0.75rem;
+            color: var(--text-light);
+            font-weight: normal;
+        }
+
+        .category-header .cat-total {
+            font-size: 0.8rem;
+            color: var(--success);
+            font-weight: bold;
+        }
+
+        .category.collapsed .category-content {
+            display: none;
+        }
+
+        .category-header .toggle {
+            font-size: 0.7rem;
+            transition: transform 0.2s;
+        }
+
+        .category.collapsed .toggle {
+            transform: rotate(-90deg);
+        }
+
+        /* Items */
+        .item {
+            display: flex;
+            align-items: center;
+            padding: 10px 14px;
+            border-bottom: 1px solid var(--border);
+            transition: all 0.3s;
+        }
+
+        .item:last-child {
+            border-bottom: none;
+        }
+
+        .item.bought {
+            background: linear-gradient(90deg, #f0fdf4, #dcfce7);
+        }
+
+        .item.bought .item-name {
+            text-decoration: line-through;
+            color: var(--text-light);
+        }
+
+        .item.highlight {
+            animation: highlightPulse 1s ease;
+        }
+
+        @keyframes highlightPulse {
+            0% { background: #fef08a; }
+            100% { background: #f0fdf4; }
+        }
+
+        .item-check {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            border: 2px solid var(--border);
+            margin-right: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            flex-shrink: 0;
+            transition: all 0.2s;
+        }
+
+        .item.bought .item-check {
+            background: var(--success);
+            border-color: var(--success);
+            color: white;
+        }
+
+        .item-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .item-name {
+            font-size: 0.9rem;
+            line-height: 1.3;
+        }
+
+        .item-price {
+            font-size: 0.95rem;
+            font-weight: bold;
+            color: var(--success);
+            margin-left: 10px;
+            white-space: nowrap;
+        }
+
+        /* Extra indicator */
+        .item.extra {
+            background: #fffbeb;
+            border-left: 3px solid var(--warning);
+        }
+
+        .item.extra .item-check {
+            border-color: var(--warning);
+        }
+
+        .item.extra.bought .item-check {
+            background: var(--warning);
+            border-color: var(--warning);
+        }
+
+        .extra-badge {
+            font-size: 0.65rem;
+            background: var(--warning);
+            color: white;
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin-left: 6px;
+        }
+
+        .delete-btn {
+            background: none;
+            border: none;
+            color: #ef4444;
+            font-size: 1.1rem;
+            padding: 4px 8px;
+            cursor: pointer;
+            opacity: 0.5;
+        }
+
+        .delete-btn:active {
+            opacity: 1;
+        }
+
+        /* ==================== BOTTOM ACTIONS ==================== */
+        .bottom-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--card-bg);
+            padding: 10px 16px;
+            display: flex;
+            gap: 8px;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+            z-index: 100;
+        }
+
+        .bottom-btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 10px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .bottom-btn.whatsapp {
+            background: #25D366;
+            color: white;
+        }
+
+        .bottom-btn.secondary {
+            background: #f0f0f0;
+            color: var(--text);
+        }
+
+        /* ==================== TOAST ==================== */
+        .toast {
+            position: fixed;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: #333;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 10px;
+            font-size: 0.9rem;
+            opacity: 0;
+            transition: all 0.3s ease;
+            z-index: 1000;
+            max-width: 90%;
+        }
+
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+
+        .toast.success { background: var(--success); }
+        .toast.error { background: #ef4444; }
+        .toast.warning { background: var(--warning); }
+
+        /* ==================== EMPTY STATE ==================== */
+        .empty-message {
+            text-align: center;
+            padding: 30px;
+            color: var(--text-light);
+        }
+	<link rel="manifest" href="manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3737/3737372.png">
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🛒 Compras - Menú Semana 4</h1>
+        <div class="subtitle">del 26 al 30 de enero</div>
+    </div>
+
+    <!-- Quick Register -->
+    <div class="quick-register">
+        <div class="register-row">
+            <input type="text" 
+                   id="registerInput" 
+                   class="register-input" 
+                   placeholder="leche 2500, pan 1200..."
+                   autocomplete="off">
+            <button class="btn-register" onclick="processInput()">✓</button>
+            <button class="btn-voice" id="voiceBtn" onclick="toggleVoice()">🎤</button>
+        </div>
+        <div class="register-hint">
+            💡 Escribí el producto y precio: <code>leche 2500</code> — Se tacha de la lista y suma al total
+        </div>
+        <div class="match-preview" id="matchPreview"></div>
+    </div>
+
+    <!-- Totals -->
+    <div class="totals-bar">
+        <div class="total-box">
+            <div class="value" id="totalSpent">$0</div>
+            <div class="label">Gastado</div>
+        </div>
+        <div class="total-box">
+            <div class="value pending" id="pendingCount">0</div>
+            <div class="label">Pendientes</div>
+        </div>
+        <div class="total-box">
+            <div class="value" id="boughtCount">0</div>
+            <div class="label">Comprados</div>
+        </div>
+    </div>
+
+    <!-- List Type Tabs -->
+    <div class="list-tabs">
+        <button class="list-tab active" onclick="switchList('general')">🍖 General</button>
+        <button class="list-tab" onclick="switchList('veggie')">🥬 Vegetariana</button>
+    </div>
+
+    <!-- Shopping List -->
+    <div class="list-container" id="listContainer"></div>
+
+    <!-- Bottom Actions -->
+    <div class="bottom-bar">
+        <button class="bottom-btn secondary" onclick="resetAll()">🗑️</button>
+        <button class="bottom-btn secondary" onclick="addExtra()">➕ Extra</button>
+        <button class="bottom-btn whatsapp" onclick="shareWhatsApp()">📱 Compartir</button>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // ==================== DATA ====================
+        let currentList = 'general';
+        let items = {}; // id -> { name, category, bought, price, isExtra }
+        let itemIdCounter = 0;
+
+        const shoppingData = {
+            general: {
+                "Supermercado 🏪": [
+                    "1 manteca chica (3 cdas. aprox.)",
+                    "4 huevos",
+                    "1 lata de atún",
+                    "1 lata de choclo",
+                    "250g de queso parmesano rallado",
+                    "1 pote chico de queso crema",
+                    "1 paquete de pan rallado",
+                    "1 vino blanco",
+                    "1 flauta de pan",
+                    "1 paquete de fideos (300g)",
+                    "1 masa para tarta",
+                    "1 pote chico de crema de leche",
+                    "Leche",
+                    "1 paquete de pan de hamburguesas"
+                ],
+                "Carnes 🥩": [
+                    "500g de carne de cerdo",
+                    "100g de panceta"
+                ],
+                "Dietética 🥗": [
+                    "100g de nueces"
+                ],
+                "Verdulería 🥬": [
+                    "1 calabaza chica",
+                    "2 berenjenas",
+                    "4 cebollas de verdeo",
+                    "1 atado de espinaca",
+                    "4 papas",
+                    "400g de tomates maduros",
+                    "3 dientes de ajo",
+                    "3 zanahorias",
+                    "1 morrón rojo",
+                    "1 cebolla morada",
+                    "1 atado de albahaca",
+                    "2 puerros",
+                    "1 cebolla",
+                    "½ repollo morado",
+                    "1 atado de cilantro",
+                    "Jengibre",
+                    "1 chile o ají picante"
+                ],
+                "Yapa ⭐": [
+                    "550g de harina integral",
+                    "1 paquetito de levadura seca",
+                    "1 paquete de aceitunas",
+                    "Romero"
+                ],
+                "Comodín 👑": [
+                    "4 huevos extra",
+                    "1 pan lactal",
+                    "Mayonesa",
+                    "100g de lomito en fetas",
+                    "250g de tomates cherry"
+                ]
+            },
+            veggie: {
+                "Supermercado 🏪": [
+                    "1 manteca chica",
+                    "4 huevos",
+                    "400g de queso parmesano rallado",
+                    "1 pote chico de queso crema",
+                    "250g de lentejas",
+                    "1 paquete de pan rallado",
+                    "1 vino blanco",
+                    "1 flauta de pan",
+                    "Leche",
+                    "1 paquete de fideos (300g)",
+                    "1 pote chico de crema de leche",
+                    "1 masa para tarta",
+                    "1 paquete de pan de hamburguesas"
+                ],
+                "Dietética 🥗": [
+                    "250g de girgolas o shitake",
+                    "150g de nueces",
+                    "100g de tomates secos"
+                ],
+                "Verdulería 🥬": [
+                    "2 berenjenas",
+                    "1 calabaza chica",
+                    "4 zanahorias",
+                    "2 cebollas",
+                    "4 dientes de ajo",
+                    "1 morrón rojo",
+                    "4 cebollas de verdeo",
+                    "4 papas",
+                    "400g de tomates maduros",
+                    "1 cebolla morada",
+                    "1 atado de albahaca",
+                    "2 puerros",
+                    "½ repollo morado",
+                    "Jengibre",
+                    "1 atado de cilantro",
+                    "1 chile o ají picante",
+                    "250g de champiñones"
+                ],
+                "Yapa ⭐": [
+                    "550g de harina integral",
+                    "1 paquetito de levadura seca",
+                    "1 paquete de aceitunas",
+                    "Romero"
+                ],
+                "Comodín 👑": [
+                    "4 huevos extra",
+                    "1 pan lactal",
+                    "Mayonesa",
+                    "250g de tomates cherry"
+                ]
+            }
+        };
+
+        // ==================== INIT ====================
+        document.addEventListener('DOMContentLoaded', function() {
+            loadData();
+            if (Object.keys(items).length === 0) {
+                initializeItems();
+            }
+            renderList();
+            updateTotals();
+            
+            document.getElementById('registerInput').addEventListener('input', showPreview);
+            document.getElementById('registerInput').addEventListener('keypress', e => {
+                if (e.key === 'Enter') processInput();
+            });
+        });
+
+        function initializeItems() {
+            const data = shoppingData[currentList];
+            items = {};
+            itemIdCounter = 0;
+            
+            for (const [category, productList] of Object.entries(data)) {
+                for (const product of productList) {
+                    items[itemIdCounter++] = {
+                        name: product,
+                        category: category,
+                        bought: false,
+                        price: 0,
+                        isExtra: false,
+                        listType: currentList
+                    };
+                }
+            }
+        }
+
+        // ==================== MATCHING ====================
+        function normalizeText(text) {
+            return text.toLowerCase()
+                .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // Remove accents
+                .replace(/[^a-z0-9\s]/g, ' ')
+                .trim();
+        }
+
+        function findMatches(searchText) {
+            const normalized = normalizeText(searchText);
+            const words = normalized.split(/\s+/).filter(w => w.length > 2);
+            
+            if (words.length === 0) return [];
+
+            const matches = [];
+            
+            for (const [id, item] of Object.entries(items)) {
+                if (item.listType !== currentList) continue;
+                
+                const itemNormalized = normalizeText(item.name);
+                
+                // Check if any search word matches
+                let score = 0;
+                for (const word of words) {
+                    if (itemNormalized.includes(word)) {
+                        score += word.length;
+                        // Bonus for word at start
+                        if (itemNormalized.startsWith(word)) score += 5;
+                    }
+                }
+                
+                if (score > 0) {
+                    matches.push({ id: parseInt(id), item, score });
+                }
+            }
+            
+            // Sort by score descending
+            matches.sort((a, b) => b.score - a.score);
+            
+            return matches.slice(0, 3); // Top 3 matches
+        }
+
+        // ==================== INPUT PROCESSING ====================
+        function parseInput(text) {
+            const results = [];
+            const parts = text.split(/[,;]/);
+            
+            for (let part of parts) {
+                part = part.trim();
+                if (!part) continue;
+
+                // Match: "producto 1234" or "producto $1.234"
+                const match = part.match(/^(.+?)\s+\$?(\d{1,3}(?:[.,]\d{3})*|\d+)\s*$/);
+                
+                if (match) {
+                    const searchText = match[1].trim();
+                    let price = match[2].replace(/\./g, '').replace(',', '.');
+                    price = parseInt(price) || 0;
+                    
+                    const matches = findMatches(searchText);
+                    
+                    results.push({
+                        searchText,
+                        price,
+                        matches,
+                        bestMatch: matches.length > 0 ? matches[0] : null
+                    });
+                }
+            }
+            
+            return results;
+        }
+
+        function showPreview(e) {
+            const text = e.target.value;
+            const preview = document.getElementById('matchPreview');
+            
+            if (!text.trim()) {
+                preview.classList.remove('active');
+                return;
+            }
+
+            const parsed = parseInput(text);
+            
+            if (parsed.length === 0) {
+                preview.classList.remove('active');
+                return;
+            }
+
+            let html = '';
+            let hasNoMatch = false;
+
+            for (const item of parsed) {
+                if (item.bestMatch) {
+                    const alreadyBought = item.bestMatch.item.bought;
+                    html += `
+                        <div class="match-item">
+                            <div class="product">
+                                <span>${alreadyBought ? '✓' : '→'}</span>
+                                <span>${item.bestMatch.item.name}</span>
+                            </div>
+                            <span class="price">$${item.price.toLocaleString('es-AR')}</span>
+                        </div>
+                    `;
+                } else {
+                    hasNoMatch = true;
+                    html += `
+                        <div class="match-item">
+                            <div class="product">
+                                <span>➕</span>
+                                <span>"${item.searchText}" (se agregará como extra)</span>
+                            </div>
+                            <span class="price">$${item.price.toLocaleString('es-AR')}</span>
+                        </div>
+                    `;
+                }
+            }
+
+            preview.innerHTML = html;
+            preview.classList.add('active');
+            preview.classList.toggle('no-match', hasNoMatch);
+        }
+
+        function processInput() {
+            const input = document.getElementById('registerInput');
+            const text = input.value.trim();
+            
+            if (!text) return;
+
+            const parsed = parseInput(text);
+            
+            if (parsed.length === 0) {
+                showToast('Agregá el precio. Ej: leche 2500', 'warning');
+                return;
+            }
+
+            let totalAdded = 0;
+            let itemsProcessed = [];
+
+            for (const item of parsed) {
+                if (item.bestMatch) {
+                    // Mark as bought and set price
+                    const id = item.bestMatch.id;
+                    items[id].bought = true;
+                    items[id].price = item.price;
+                    totalAdded += item.price;
+                    itemsProcessed.push(items[id].name);
+                    
+                    // Highlight animation
+                    setTimeout(() => {
+                        const el = document.querySelector(`[data-id="${id}"]`);
+                        if (el) {
+                            el.classList.add('highlight');
+                            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        }
+                    }, 100);
+                } else {
+                    // Add as extra
+                    const newId = itemIdCounter++;
+                    items[newId] = {
+                        name: item.searchText.charAt(0).toUpperCase() + item.searchText.slice(1),
+                        category: 'Extras ➕',
+                        bought: true,
+                        price: item.price,
+                        isExtra: true,
+                        listType: currentList
+                    };
+                    totalAdded += item.price;
+                    itemsProcessed.push(items[newId].name + ' (extra)');
+                }
+            }
+
+            input.value = '';
+            document.getElementById('matchPreview').classList.remove('active');
+            
+            renderList();
+            updateTotals();
+            saveData();
+            
+            showToast(`✓ +$${totalAdded.toLocaleString('es-AR')}`, 'success');
+        }
+
+        // ==================== RENDER ====================
+        function renderList() {
+            const container = document.getElementById('listContainer');
+            
+            // Group items by category
+            const categories = {};
+            
+            for (const [id, item] of Object.entries(items)) {
+                if (item.listType !== currentList) continue;
+                
+                const cat = item.category;
+                if (!categories[cat]) {
+                    categories[cat] = [];
+                }
+                categories[cat].push({ id: parseInt(id), ...item });
+            }
+
+            // Sort: unbought first, then by name
+            for (const cat of Object.keys(categories)) {
+                categories[cat].sort((a, b) => {
+                    if (a.bought !== b.bought) return a.bought ? 1 : -1;
+                    return a.name.localeCompare(b.name);
+                });
+            }
+
+            // Define category order
+            const categoryOrder = [
+                'Supermercado 🏪',
+                'Carnes 🥩',
+                'Dietética 🥗',
+                'Verdulería 🥬',
+                'Yapa ⭐',
+                'Comodín 👑',
+                'Extras ➕'
+            ];
+
+            let html = '';
+
+            for (const catName of categoryOrder) {
+                const catItems = categories[catName];
+                if (!catItems || catItems.length === 0) continue;
+
+                const boughtCount = catItems.filter(i => i.bought).length;
+                const catTotal = catItems.reduce((sum, i) => sum + (i.price || 0), 0);
+
+                html += `
+                    <div class="category" data-category="${catName}">
+                        <div class="category-header" onclick="toggleCategory(this)">
+                            <span>${catName}</span>
+                            <span class="count">${boughtCount}/${catItems.length}</span>
+                            ${catTotal > 0 ? `<span class="cat-total">$${catTotal.toLocaleString('es-AR')}</span>` : ''}
+                            <span class="toggle">▼</span>
+                        </div>
+                        <div class="category-content">
+                            ${catItems.map(item => `
+                                <div class="item ${item.bought ? 'bought' : ''} ${item.isExtra ? 'extra' : ''}" 
+                                     data-id="${item.id}">
+                                    <div class="item-check">${item.bought ? '✓' : ''}</div>
+                                    <div class="item-info">
+                                        <span class="item-name">${item.name}</span>
+                                        ${item.isExtra ? '<span class="extra-badge">EXTRA</span>' : ''}
+                                    </div>
+                                    ${item.price > 0 ? `<span class="item-price">$${item.price.toLocaleString('es-AR')}</span>` : ''}
+                                    ${item.isExtra ? `<button class="delete-btn" onclick="deleteItem(${item.id})">×</button>` : ''}
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            container.innerHTML = html || '<div class="empty-message">No hay items</div>';
+        }
+
+        function toggleCategory(header) {
+            header.parentElement.classList.toggle('collapsed');
+        }
+
+        function updateTotals() {
+            let totalSpent = 0;
+            let pending = 0;
+            let bought = 0;
+
+            for (const [id, item] of Object.entries(items)) {
+                if (item.listType !== currentList) continue;
+                
+                if (item.bought) {
+                    bought++;
+                    totalSpent += item.price || 0;
+                } else {
+                    pending++;
+                }
+            }
+
+            document.getElementById('totalSpent').textContent = `$${totalSpent.toLocaleString('es-AR')}`;
+            document.getElementById('pendingCount').textContent = pending;
+            document.getElementById('boughtCount').textContent = bought;
+        }
+
+        // ==================== ACTIONS ====================
+        function switchList(type) {
+            currentList = type;
+            document.querySelectorAll('.list-tab').forEach(t => t.classList.remove('active'));
+            event.currentTarget.classList.add('active');
+            
+            // Check if we have items for this list type
+            const hasItems = Object.values(items).some(i => i.listType === type);
+            if (!hasItems) {
+                initializeItems();
+            }
+            
+            renderList();
+            updateTotals();
+        }
+
+        function addExtra() {
+            const name = prompt('Nombre del producto extra:');
+            if (!name) return;
+            
+            const priceStr = prompt('Precio (o dejá vacío):');
+            const price = parseInt(priceStr) || 0;
+            
+            const newId = itemIdCounter++;
+            items[newId] = {
+                name: name.charAt(0).toUpperCase() + name.slice(1),
+                category: 'Extras ➕',
+                bought: price > 0,
+                price: price,
+                isExtra: true,
+                listType: currentList
+            };
+            
+            renderList();
+            updateTotals();
+            saveData();
+            showToast('Extra agregado', 'success');
+        }
+
+        function deleteItem(id) {
+            if (items[id] && items[id].isExtra) {
+                delete items[id];
+                renderList();
+                updateTotals();
+                saveData();
+            }
+        }
+
+        function resetAll() {
+            if (!confirm('¿Reiniciar todo? Se borrarán los precios y compras.')) return;
+            
+            initializeItems();
+            renderList();
+            updateTotals();
+            saveData();
+            showToast('Lista reiniciada', 'success');
+        }
+
+        function shareWhatsApp() {
+            const listItems = Object.values(items).filter(i => i.listType === currentList);
+            const bought = listItems.filter(i => i.bought);
+            const pending = listItems.filter(i => !i.bought);
+            const total = bought.reduce((sum, i) => sum + (i.price || 0), 0);
+
+            let text = `🛒 *Compras - ${new Date().toLocaleDateString('es-AR')}*\n\n`;
+            
+            if (bought.length > 0) {
+                text += `✅ *Comprado (${bought.length}):*\n`;
+                bought.forEach(i => {
+                    text += `• ${i.name}`;
+                    if (i.price) text += ` - $${i.price.toLocaleString('es-AR')}`;
+                    text += '\n';
+                });
+                text += `\n💰 *TOTAL: $${total.toLocaleString('es-AR')}*\n`;
+            }
+
+            if (pending.length > 0) {
+                text += `\n⏳ *Pendiente (${pending.length}):*\n`;
+                pending.slice(0, 10).forEach(i => {
+                    text += `• ${i.name}\n`;
+                });
+                if (pending.length > 10) {
+                    text += `... y ${pending.length - 10} más\n`;
+                }
+            }
+
+            window.open(`https://wa.me/?text=${encodeURIComponent(text)}`);
+        }
+
+        // ==================== VOICE ====================
+        let recognition = null;
+        let isRecording = false;
+
+        function toggleVoice() {
+            if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+                showToast('Voz no soportada', 'error');
+                return;
+            }
+
+            const btn = document.getElementById('voiceBtn');
+
+            if (isRecording) {
+                recognition.stop();
+                btn.classList.remove('recording');
+                btn.textContent = '🎤';
+                isRecording = false;
+            } else {
+                const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+                recognition = new SR();
+                recognition.lang = 'es-AR';
+                recognition.continuous = false;
+
+                recognition.onresult = function(e) {
+                    document.getElementById('registerInput').value = e.results[0][0].transcript;
+                    showPreview({ target: document.getElementById('registerInput') });
+                    btn.classList.remove('recording');
+                    btn.textContent = '🎤';
+                    isRecording = false;
+                };
+
+                recognition.onerror = function() {
+                    btn.classList.remove('recording');
+                    btn.textContent = '🎤';
+                    isRecording = false;
+                };
+
+                recognition.start();
+                btn.classList.add('recording');
+                btn.textContent = '⏹';
+                isRecording = true;
+                showToast('🎤 Hablá...', 'success');
+            }
+        }
+
+        // ==================== STORAGE ====================
+        function saveData() {
+            localStorage.setItem('paulina_v4', JSON.stringify({ items, itemIdCounter, currentList }));
+        }
+
+        function loadData() {
+            const saved = localStorage.getItem('paulina_v4');
+            if (saved) {
+                const data = JSON.parse(saved);
+                items = data.items || {};
+                itemIdCounter = data.itemIdCounter || 0;
+                currentList = data.currentList || 'general';
+                
+                // Update tab UI
+                document.querySelectorAll('.list-tab').forEach(t => t.classList.remove('active'));
+                document.querySelector(`.list-tab:${currentList === 'general' ? 'first' : 'last'}-child`).classList.add('active');
+            }
+        }
+
+        // ==================== TOAST ====================
+        function showToast(msg, type = '') {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.className = `toast show ${type}`;
+            setTimeout(() => toast.classList.remove('show'), 2500);
+        }
+    </script>
+</body>
+</html>
