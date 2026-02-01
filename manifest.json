@@ -1,0 +1,16 @@
+{
+  "name": "Compras Paulina",
+  "short_name": "Compras",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#CF1015",
+  "theme_color": "#CF1015",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/3737/3737372.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
