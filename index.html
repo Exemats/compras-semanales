@@ -894,14 +894,7 @@
     <div class="toast" id="toast"></div>
 
     <script>
-                // Import the functions you need from the SDKs you need
-        import { initializeApp } from "firebase/app";
-        import { getAnalytics } from "firebase/analytics";
-        // TODO: Add SDKs for Firebase products that you want to use
-        // https://firebase.google.com/docs/web/setup#available-libraries
-        
-        // Your web app's Firebase configuration
-        // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+        // Firebase configuration
         const firebaseConfig = {
           apiKey: "AIzaSyAv_ko7n9m9dG-NUuKkz8jLS1vQOE3NOgs",
           authDomain: "compras-semanales-72dd1.firebaseapp.com",
@@ -911,10 +904,6 @@
           appId: "1:1079679650059:web:dd70afc49639b2cde27a0e",
           measurementId: "G-YPZ2K4SX5E"
         };
-        
-        // Initialize Firebase
-        const app = initializeApp(firebaseConfig);
-        const analytics = getAnalytics(app);
 
         // Usuarios autorizados
         const ALLOWED_EMAILS = [
