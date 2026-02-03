@@ -62,17 +62,27 @@ class PaulinaExtractor:
         self.lista_veggie = {}
 
     def detectar_semana_actual(self) -> int:
-        """Detecta qué semana está disponible."""
+        """Detecta qué semana está disponible (la más reciente)."""
+        semanas = self.listar_semanas_disponibles()
+        if semanas:
+            print(f"📅 Detectada semana {semanas[0]} como la más reciente")
+            return semanas[0]
+        return 1
+
+    @classmethod
+    def listar_semanas_disponibles(cls) -> list:
+        """Lista todas las semanas disponibles."""
+        disponibles = []
+        print("🔍 Buscando semanas disponibles...")
         for semana in range(20, 0, -1):
-            url = self.BASE_URL.format(semana=semana)
+            url = cls.BASE_URL.format(semana=semana)
             try:
                 response = requests.head(url, timeout=5, allow_redirects=True)
                 if response.status_code == 200:
-                    print(f"📅 Detectada semana {semana} disponible")
-                    return semana
+                    disponibles.append(semana)
             except:
                 continue
-        return 1
+        return disponibles
 
     def descargar(self) -> bool:
         """Descarga el HTML del menú."""
@@ -283,9 +293,21 @@ def main():
     import argparse
 
     parser = argparse.ArgumentParser(
-        description='🍳 Descarga el menú semanal de Paulina Cocina'
+        description='🍳 Descarga el menú semanal de Paulina Cocina',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog='''
+Ejemplos:
+  python paulina_scraper.py                    # Descarga la semana más reciente
+  python paulina_scraper.py --semana 4         # Descarga semana 4
+  python paulina_scraper.py --listar           # Lista semanas disponibles
+  python paulina_scraper.py --todas            # Descarga todas las semanas disponibles
+  python paulina_scraper.py --rango 3-5        # Descarga semanas 3, 4 y 5
+'''
     )
     parser.add_argument('--semana', '-s', type=int, help='Número de semana específico')
+    parser.add_argument('--listar', '-l', action='store_true', help='Listar semanas disponibles sin descargar')
+    parser.add_argument('--todas', '-t', action='store_true', help='Descargar todas las semanas disponibles')
+    parser.add_argument('--rango', '-r', type=str, help='Rango de semanas (ej: 3-5)')
     parser.add_argument('--output', '-o', default='./menu_semana.json', help='Archivo JSON de salida')
     parser.add_argument('--local', action='store_true', help='Solo guardar localmente, no subir a Firebase')
     parser.add_argument('--credentials', '-c', default='firebase_credentials.json', help='Archivo de credenciales Firebase')
@@ -295,45 +317,85 @@ def main():
     print("🍳 Paulina Cocina - Scraper de Lista de Compras")
     print("=" * 50)
 
-    # Crear extractor
-    extractor = PaulinaExtractor(args.semana)
+    # Modo listar: solo mostrar semanas disponibles
+    if args.listar:
+        semanas = PaulinaExtractor.listar_semanas_disponibles()
+        if semanas:
+            print(f"\n✅ Semanas disponibles: {', '.join(map(str, semanas))}")
+            print(f"   Total: {len(semanas)} semanas")
+        else:
+            print("\n❌ No se encontraron semanas disponibles")
+        return 0
 
-    # Descargar
-    if not extractor.descargar():
-        return 1
+    # Determinar qué semanas procesar
+    semanas_a_procesar = []
 
-    # Extraer
-    if not extractor.extraer():
-        print("❌ No se pudo extraer la lista de compras")
-        return 1
+    if args.todas:
+        semanas_a_procesar = PaulinaExtractor.listar_semanas_disponibles()
+        print(f"\n📋 Procesando {len(semanas_a_procesar)} semanas: {', '.join(map(str, semanas_a_procesar))}")
+    elif args.rango:
+        try:
+            inicio, fin = map(int, args.rango.split('-'))
+            semanas_a_procesar = list(range(inicio, fin + 1))
+            print(f"\n📋 Procesando rango de semanas: {inicio} a {fin}")
+        except:
+            print("❌ Formato de rango inválido. Usa: --rango 3-5")
+            return 1
+    elif args.semana:
+        semanas_a_procesar = [args.semana]
+    else:
+        semanas_a_procesar = [None]  # None = detectar automáticamente
 
-    # Generar datos
-    datos = extractor.generar_json()
-
-    # Guardar JSON local
-    output_path = args.output.replace('.json', f'_s{extractor.semana}.json')
-    with open(output_path, 'w', encoding='utf-8') as f:
-        json.dump(datos, f, ensure_ascii=False, indent=2)
-    print(f"📄 JSON guardado: {output_path}")
-
-    # Subir a Firebase (si no es modo local)
+    # Procesar cada semana
+    uploader = None
     if not args.local:
         uploader = FirebaseUploader(args.credentials)
-        if uploader.db:
+
+    exitosas = 0
+    for semana in semanas_a_procesar:
+        print(f"\n{'='*50}")
+        extractor = PaulinaExtractor(semana)
+
+        # Descargar
+        if not extractor.descargar():
+            print(f"⚠️  No se pudo descargar semana {semana}")
+            continue
+
+        # Extraer
+        if not extractor.extraer():
+            print(f"⚠️  No se pudo extraer la lista de semana {semana}")
+            continue
+
+        # Generar datos
+        datos = extractor.generar_json()
+
+        # Guardar JSON local
+        output_path = args.output.replace('.json', f'_s{extractor.semana}.json')
+        with open(output_path, 'w', encoding='utf-8') as f:
+            json.dump(datos, f, ensure_ascii=False, indent=2)
+        print(f"📄 JSON guardado: {output_path}")
+
+        # Subir a Firebase
+        if uploader and uploader.db:
             uploader.upload(extractor.semana, datos)
-        else:
-            print("\n💡 Para subir a Firebase, creá el archivo de credenciales.")
-            print("   Ver SETUP_FIREBASE.md para instrucciones.")
 
-    print("\n✨ ¡Listo!")
-    print(f"   Semana {extractor.semana}: {datos['titulo']}")
+        exitosas += 1
+        print(f"✅ Semana {extractor.semana}: {datos['titulo']}")
 
-    # Mostrar resumen
-    total_general = sum(len(items) for items in datos['general'].values())
-    total_veggie = sum(len(items) for items in datos['veggie'].values())
-    print(f"   General: {total_general} items | Veggie: {total_veggie} items")
+        # Mostrar resumen
+        total_general = sum(len(items) for items in datos['general'].values())
+        total_veggie = sum(len(items) for items in datos['veggie'].values())
+        print(f"   General: {total_general} items | Veggie: {total_veggie} items")
 
-    return 0
+    # Resumen final
+    print(f"\n{'='*50}")
+    print(f"✨ ¡Listo! {exitosas}/{len(semanas_a_procesar)} semanas procesadas")
+
+    if not args.local and (not uploader or not uploader.db):
+        print("\n💡 Para subir a Firebase, creá el archivo de credenciales.")
+        print("   Ver SETUP_FIREBASE.md para instrucciones.")
+
+    return 0 if exitosas > 0 else 1
 
 
 if __name__ == '__main__':

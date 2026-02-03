@@ -396,6 +396,44 @@
             color: var(--success);
         }
 
+        /* ==================== SEARCH BAR ==================== */
+        .search-bar {
+            display: flex;
+            padding: 8px 16px;
+            gap: 8px;
+            background: var(--card-bg);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .search-bar input {
+            flex: 1;
+            padding: 10px 14px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 0.9rem;
+            background: var(--bg);
+        }
+
+        .search-bar input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .clear-search {
+            padding: 0 14px;
+            border: none;
+            background: var(--border);
+            border-radius: 8px;
+            font-size: 1.2rem;
+            color: var(--text-light);
+            cursor: pointer;
+            display: none;
+        }
+
+        .clear-search.visible {
+            display: block;
+        }
+
         /* ==================== LIST TABS ==================== */
         .list-tabs {
             display: flex;
@@ -904,6 +942,12 @@
     <!-- Gastos por persona -->
     <div class="person-totals" id="personTotals"></div>
 
+    <!-- Search Bar -->
+    <div class="search-bar">
+        <input type="text" id="searchInput" placeholder="🔍 Buscar item..." oninput="filterList()">
+        <button class="clear-search" onclick="clearSearch()" id="clearSearchBtn">×</button>
+    </div>
+
     <!-- List Type Tabs -->
     <div class="list-tabs">
         <button class="list-tab active" onclick="switchList('general')">🍖 General</button>
@@ -1074,6 +1118,7 @@
         let currentWeekId = null;
         let weeks = {}; // weekId -> { name, createdAt, items, itemIdCounter, currentList }
         let items = {}; // id -> { name, category, bought, price, isExtra }
+        let searchFilter = ''; // Filtro de búsqueda actual
         let itemIdCounter = 0;
 
         const shoppingData = {
@@ -1472,7 +1517,12 @@
             
             for (const [id, item] of Object.entries(items)) {
                 if (item.listType !== currentList) continue;
-                
+
+                // Aplicar filtro de búsqueda
+                if (searchFilter && !item.name.toLowerCase().includes(searchFilter)) {
+                    continue;
+                }
+
                 const cat = item.category;
                 if (!categories[cat]) {
                     categories[cat] = [];
@@ -1519,14 +1569,14 @@
                         <div class="category-content">
                             ${catItems.map(item => `
                                 <div class="item ${item.bought ? 'bought' : ''} ${item.isExtra ? 'extra' : ''}"
-                                     data-id="${item.id}">
+                                     data-id="${item.id}" onclick="toggleItem(${item.id})">
                                     <div class="item-check">${item.bought ? '✓' : ''}</div>
                                     <div class="item-info">
                                         <span class="item-name">${item.name}</span>
                                         ${item.isExtra ? '<span class="extra-badge">EXTRA</span>' : ''}
                                         ${item.boughtBy ? `<span class="bought-by">${item.boughtBy.split(' ')[0]}</span>` : ''}
                                     </div>
-                                    ${item.price > 0 ? `<span class="item-price">$${item.price.toLocaleString('es-AR')}</span>` : ''}
+                                    ${item.bought ? `<span class="item-price" onclick="editPrice(${item.id}, event)">$${(item.price || 0).toLocaleString('es-AR')}</span>` : ''}
                                     ${item.isExtra ? `<button class="delete-btn" onclick="deleteItem(${item.id}, event)">×</button>` : ''}
                                 </div>
                             `).join('')}
@@ -1540,6 +1590,28 @@
 
         function toggleCategory(header) {
             header.parentElement.classList.toggle('collapsed');
+        }
+
+        function filterList() {
+            const input = document.getElementById('searchInput');
+            const clearBtn = document.getElementById('clearSearchBtn');
+            searchFilter = input.value.toLowerCase().trim();
+
+            // Mostrar/ocultar botón de limpiar
+            if (searchFilter) {
+                clearBtn.classList.add('visible');
+            } else {
+                clearBtn.classList.remove('visible');
+            }
+
+            renderList();
+        }
+
+        function clearSearch() {
+            document.getElementById('searchInput').value = '';
+            searchFilter = '';
+            document.getElementById('clearSearchBtn').classList.remove('visible');
+            renderList();
         }
 
         function updateTotals() {
@@ -1624,6 +1696,49 @@
             updateTotals();
             saveData();
             showToast('Extra agregado', 'success');
+        }
+
+        function toggleItem(id) {
+            const strId = String(id);
+            if (!items[strId]) return;
+
+            const item = items[strId];
+            if (item.bought) {
+                // Desmarcar
+                item.bought = false;
+                item.price = 0;
+                item.boughtBy = null;
+                showToast('Item desmarcado', 'info');
+            } else {
+                // Marcar como comprado - pedir precio
+                const priceStr = prompt(`Precio de "${item.name}":`);
+                if (priceStr === null) return; // Canceló
+                const price = parseInt(priceStr) || 0;
+                item.bought = true;
+                item.price = price;
+                item.boughtBy = currentUser?.displayName || currentUser?.email || 'Anónimo';
+                showToast('Item marcado', 'success');
+            }
+
+            renderList();
+            updateTotals();
+            saveData();
+        }
+
+        function editPrice(id, event) {
+            event.stopPropagation();
+            const strId = String(id);
+            if (!items[strId]) return;
+
+            const item = items[strId];
+            const newPrice = prompt(`Nuevo precio de "${item.name}":`, item.price || 0);
+            if (newPrice === null) return; // Canceló
+
+            item.price = parseInt(newPrice) || 0;
+            renderList();
+            updateTotals();
+            saveData();
+            showToast('Precio actualizado', 'success');
         }
 
         function deleteItem(id, event) {
@@ -1786,6 +1901,9 @@
             }
         }
 
+        let unsubscribeListener = null;
+        let lastSaveTime = 0;
+
         async function syncFromFirestore() {
             if (!firebaseReady || !db) return;
 
@@ -1803,6 +1921,60 @@
                     };
                 }
             });
+
+            // Iniciar listener en tiempo real
+            startRealtimeSync();
+        }
+
+        function startRealtimeSync() {
+            if (!firebaseReady || !db || unsubscribeListener) return;
+
+            unsubscribeListener = db.collection('weeks').onSnapshot(snapshot => {
+                // Ignorar cambios propios (dentro de 2 segundos de guardar)
+                if (Date.now() - lastSaveTime < 2000) return;
+
+                let hasChanges = false;
+
+                snapshot.docChanges().forEach(change => {
+                    if (change.type === 'modified' || change.type === 'added') {
+                        const weekData = change.doc.data();
+                        const localWeek = weeks[change.doc.id];
+
+                        // Solo actualizar si el de la nube es más reciente
+                        if (!localWeek || (weekData.updatedAt > (localWeek.updatedAt || 0))) {
+                            weeks[change.doc.id] = {
+                                id: change.doc.id,
+                                ...weekData
+                            };
+                            hasChanges = true;
+                        }
+                    } else if (change.type === 'removed') {
+                        if (weeks[change.doc.id]) {
+                            delete weeks[change.doc.id];
+                            hasChanges = true;
+                        }
+                    }
+                });
+
+                if (hasChanges) {
+                    saveToLocalStorage();
+                    renderWeeksDropdown();
+
+                    // Si la semana actual fue modificada, recargar
+                    if (currentWeekId && weeks[currentWeekId]) {
+                        items = weeks[currentWeekId].items || {};
+                        itemIdCounter = weeks[currentWeekId].itemIdCounter || 0;
+                        renderList();
+                        updateTotals();
+                        showToast('Lista actualizada', 'info');
+                    }
+
+                    updateSyncStatus('synced', 'Sincronizado');
+                }
+            }, error => {
+                console.error('Error en listener:', error);
+                updateSyncStatus('error', 'Error de conexión');
+            });
         }
 
         async function saveWeekToCloud(weekId) {
@@ -1812,6 +1984,7 @@
             if (!week) return;
 
             updateSyncStatus('syncing', 'Guardando...');
+            lastSaveTime = Date.now(); // Marcar que estamos guardando
 
             try {
                 await db.collection('weeks').doc(weekId).set({
