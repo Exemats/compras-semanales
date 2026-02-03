@@ -361,6 +361,41 @@
             text-transform: uppercase;
         }
 
+        /* ==================== PERSON TOTALS ==================== */
+        .person-totals {
+            display: flex;
+            gap: 8px;
+            padding: 8px 16px;
+            background: var(--card-bg);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .person-totals:empty {
+            display: none;
+        }
+
+        .person-total {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 8px 12px;
+            background: var(--bg);
+            border-radius: 8px;
+            font-size: 0.85rem;
+        }
+
+        .person-total .name {
+            font-weight: 500;
+            color: var(--text-light);
+        }
+
+        .person-total .amount {
+            font-weight: bold;
+            color: var(--success);
+        }
+
         /* ==================== LIST TABS ==================== */
         .list-tabs {
             display: flex;
@@ -528,6 +563,16 @@
             padding: 2px 6px;
             border-radius: 4px;
             margin-left: 6px;
+        }
+
+        .bought-by {
+            font-size: 0.65rem;
+            background: var(--primary);
+            color: white;
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin-left: 6px;
+            opacity: 0.8;
         }
 
         .delete-btn {
@@ -855,6 +900,9 @@
             <div class="label">Comprados</div>
         </div>
     </div>
+
+    <!-- Gastos por persona -->
+    <div class="person-totals" id="personTotals"></div>
 
     <!-- List Type Tabs -->
     <div class="list-tabs">
@@ -1376,6 +1424,7 @@
                     const id = item.bestMatch.id;
                     items[id].bought = true;
                     items[id].price = item.price;
+                    items[id].boughtBy = currentUser?.displayName || currentUser?.email || 'Anónimo';
                     totalAdded += item.price;
                     itemsProcessed.push(items[id].name);
                     
@@ -1396,7 +1445,8 @@
                         bought: true,
                         price: item.price,
                         isExtra: true,
-                        listType: currentList
+                        listType: currentList,
+                        boughtBy: currentUser?.displayName || currentUser?.email || 'Anónimo'
                     };
                     totalAdded += item.price;
                     itemsProcessed.push(items[newId].name + ' (extra)');
@@ -1468,15 +1518,16 @@
                         </div>
                         <div class="category-content">
                             ${catItems.map(item => `
-                                <div class="item ${item.bought ? 'bought' : ''} ${item.isExtra ? 'extra' : ''}" 
+                                <div class="item ${item.bought ? 'bought' : ''} ${item.isExtra ? 'extra' : ''}"
                                      data-id="${item.id}">
                                     <div class="item-check">${item.bought ? '✓' : ''}</div>
                                     <div class="item-info">
                                         <span class="item-name">${item.name}</span>
                                         ${item.isExtra ? '<span class="extra-badge">EXTRA</span>' : ''}
+                                        ${item.boughtBy ? `<span class="bought-by">${item.boughtBy.split(' ')[0]}</span>` : ''}
                                     </div>
                                     ${item.price > 0 ? `<span class="item-price">$${item.price.toLocaleString('es-AR')}</span>` : ''}
-                                    ${item.isExtra ? `<button class="delete-btn" onclick="deleteItem(${item.id})">×</button>` : ''}
+                                    ${item.isExtra ? `<button class="delete-btn" onclick="deleteItem(${item.id}, event)">×</button>` : ''}
                                 </div>
                             `).join('')}
                         </div>
@@ -1495,13 +1546,20 @@
             let totalSpent = 0;
             let pending = 0;
             let bought = 0;
+            const byPerson = {}; // { nombre: total }
 
             for (const [id, item] of Object.entries(items)) {
                 if (item.listType !== currentList) continue;
-                
+
                 if (item.bought) {
                     bought++;
                     totalSpent += item.price || 0;
+
+                    // Sumar por persona
+                    if (item.boughtBy && item.price > 0) {
+                        const name = item.boughtBy.split(' ')[0]; // Solo el primer nombre
+                        byPerson[name] = (byPerson[name] || 0) + item.price;
+                    }
                 } else {
                     pending++;
                 }
@@ -1510,6 +1568,21 @@
             document.getElementById('totalSpent').textContent = `$${totalSpent.toLocaleString('es-AR')}`;
             document.getElementById('pendingCount').textContent = pending;
             document.getElementById('boughtCount').textContent = bought;
+
+            // Mostrar totales por persona
+            const personTotalsDiv = document.getElementById('personTotals');
+            const personNames = Object.keys(byPerson);
+
+            if (personNames.length > 0) {
+                personTotalsDiv.innerHTML = personNames.map(name => `
+                    <div class="person-total">
+                        <span class="name">${name}:</span>
+                        <span class="amount">$${byPerson[name].toLocaleString('es-AR')}</span>
+                    </div>
+                `).join('');
+            } else {
+                personTotalsDiv.innerHTML = '';
+            }
         }
 
         // ==================== ACTIONS ====================
@@ -1543,7 +1616,8 @@
                 bought: price > 0,
                 price: price,
                 isExtra: true,
-                listType: currentList
+                listType: currentList,
+                boughtBy: price > 0 ? (currentUser?.displayName || currentUser?.email || 'Anónimo') : null
             };
             
             renderList();
@@ -1552,12 +1626,16 @@
             showToast('Extra agregado', 'success');
         }
 
-        function deleteItem(id) {
-            if (items[id] && items[id].isExtra) {
-                delete items[id];
+        function deleteItem(id, event) {
+            if (event) event.stopPropagation();
+            // Convertir a string porque las keys de objetos JSON son siempre strings
+            const strId = String(id);
+            if (items[strId] && items[strId].isExtra) {
+                delete items[strId];
                 renderList();
                 updateTotals();
                 saveData();
+                showToast('Item eliminado', 'success');
             }
         }
 
