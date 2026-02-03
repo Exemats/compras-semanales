@@ -8,6 +8,10 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3737/3737372.png">
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <style>
         * {
             margin: 0;
@@ -54,6 +58,152 @@
         .header .subtitle {
             font-size: 0.75rem;
             opacity: 0.9;
+        }
+
+        /* ==================== WEEK SELECTOR ==================== */
+        .week-selector {
+            background: linear-gradient(135deg, #2d3748, #1a202c);
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .week-dropdown {
+            flex: 1;
+            padding: 10px 14px;
+            border: none;
+            border-radius: 10px;
+            font-size: 0.95rem;
+            background: white;
+            color: var(--text);
+            cursor: pointer;
+        }
+
+        .week-btn {
+            padding: 10px 14px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            cursor: pointer;
+            background: rgba(255,255,255,0.2);
+            color: white;
+        }
+
+        .week-btn:active {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .week-btn.danger {
+            background: rgba(239, 68, 68, 0.7);
+        }
+
+        .sync-status {
+            font-size: 0.75rem;
+            color: rgba(255,255,255,0.7);
+            padding: 4px 10px;
+            border-radius: 12px;
+            background: rgba(255,255,255,0.1);
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .sync-status.synced {
+            color: #4ade80;
+        }
+
+        .sync-status.syncing {
+            color: #fbbf24;
+        }
+
+        .sync-status.error {
+            color: #f87171;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .sync-status.syncing::before {
+            content: '';
+            width: 10px;
+            height: 10px;
+            border: 2px solid currentColor;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.6);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 200;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            width: 90%;
+            max-width: 340px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        }
+
+        .modal h3 {
+            margin-bottom: 16px;
+            font-size: 1.1rem;
+        }
+
+        .modal input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid var(--border);
+            border-radius: 10px;
+            font-size: 1rem;
+            margin-bottom: 12px;
+        }
+
+        .modal input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .modal-btns {
+            display: flex;
+            gap: 10px;
+        }
+
+        .modal-btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 10px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .modal-btn.primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .modal-btn.secondary {
+            background: #f0f0f0;
+            color: var(--text);
         }
 
         /* ==================== QUICK REGISTER ==================== */
@@ -464,12 +614,213 @@
             padding: 30px;
             color: var(--text-light);
         }
+
+        /* ==================== LOGIN SCREEN ==================== */
+        .login-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 300;
+            padding: 20px;
+        }
+
+        .login-screen.hidden {
+            display: none;
+        }
+
+        .login-card {
+            background: white;
+            border-radius: 20px;
+            padding: 40px 30px;
+            text-align: center;
+            max-width: 340px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        .login-card h1 {
+            font-size: 2.5rem;
+            margin-bottom: 8px;
+        }
+
+        .login-card h2 {
+            font-size: 1.2rem;
+            color: var(--text);
+            margin-bottom: 8px;
+        }
+
+        .login-card p {
+            color: var(--text-light);
+            font-size: 0.9rem;
+            margin-bottom: 30px;
+        }
+
+        .google-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            width: 100%;
+            padding: 14px 20px;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            background: white;
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .google-btn:hover {
+            background: #f8f8f8;
+            border-color: #ccc;
+        }
+
+        .google-btn:active {
+            transform: scale(0.98);
+        }
+
+        .google-btn img {
+            width: 20px;
+            height: 20px;
+        }
+
+        .login-error {
+            margin-top: 16px;
+            padding: 12px;
+            background: #fef2f2;
+            border-radius: 8px;
+            color: #dc2626;
+            font-size: 0.85rem;
+            display: none;
+        }
+
+        .login-error.show {
+            display: block;
+        }
+
+        /* User Info Bar */
+        .user-bar {
+            background: linear-gradient(135deg, #1f2937, #111827);
+            padding: 8px 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: white;
+            font-size: 0.8rem;
+        }
+
+        .user-avatar {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 0.75rem;
+        }
+
+        .user-avatar img {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+        }
+
+        .user-name {
+            flex: 1;
+            opacity: 0.9;
+        }
+
+        .logout-btn {
+            padding: 6px 12px;
+            background: rgba(255,255,255,0.1);
+            border: none;
+            border-radius: 6px;
+            color: white;
+            font-size: 0.75rem;
+            cursor: pointer;
+        }
+
+        .logout-btn:active {
+            background: rgba(255,255,255,0.2);
+        }
+
+        /* Import button */
+        .import-btn {
+            background: #8b5cf6;
+            color: white;
+        }
+
+        .app-content {
+            display: none;
+        }
+
+        .app-content.visible {
+            display: block;
+        }
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1>🛒 Compras - Menú Semana 4</h1>
-        <div class="subtitle">del 26 al 30 de enero</div>
+    <!-- Login Screen -->
+    <div class="login-screen" id="loginScreen">
+        <div class="login-card">
+            <h1>🛒</h1>
+            <h2>Compras Semanales</h2>
+            <p>Iniciá sesión para sincronizar tus listas de compras</p>
+            <button class="google-btn" onclick="signInWithGoogle()">
+                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google">
+                Continuar con Google
+            </button>
+            <div class="login-error" id="loginError"></div>
+        </div>
+    </div>
+
+    <!-- App Content (hidden until login) -->
+    <div class="app-content" id="appContent">
+        <!-- User Bar -->
+        <div class="user-bar" id="userBar">
+            <div class="user-avatar" id="userAvatar">?</div>
+            <span class="user-name" id="userName">Usuario</span>
+            <button class="logout-btn" onclick="signOutUser()">Salir</button>
+        </div>
+
+        <div class="header">
+            <h1 id="headerTitle">🛒 Compras Semanales</h1>
+            <div class="subtitle" id="headerSubtitle">Seleccioná una semana</div>
+        </div>
+
+    <!-- Week Selector -->
+    <div class="week-selector">
+        <select id="weekDropdown" class="week-dropdown" onchange="selectWeek(this.value)">
+            <option value="">Cargando semanas...</option>
+        </select>
+        <button class="week-btn" onclick="openNewWeekModal()" title="Nueva semana">➕</button>
+        <button class="week-btn danger" onclick="deleteCurrentWeek()" title="Eliminar semana">🗑️</button>
+        <div class="sync-status" id="syncStatus">
+            <span>☁️</span> <span id="syncText">Local</span>
+        </div>
+    </div>
+
+    <!-- Modal Nueva Semana -->
+    <div class="modal-overlay" id="newWeekModal">
+        <div class="modal">
+            <h3>📅 Nueva Semana</h3>
+            <input type="text" id="weekNameInput" placeholder="Ej: Semana 5 - Febrero" maxlength="40">
+            <div class="modal-btns">
+                <button class="modal-btn secondary" onclick="closeNewWeekModal()">Cancelar</button>
+                <button class="modal-btn primary" onclick="createNewWeek()">Crear</button>
+            </div>
+        </div>
     </div>
 
     <!-- Quick Register -->
@@ -514,19 +865,165 @@
     <!-- Shopping List -->
     <div class="list-container" id="listContainer"></div>
 
-    <!-- Bottom Actions -->
-    <div class="bottom-bar">
-        <button class="bottom-btn secondary" onclick="resetAll()">🗑️</button>
-        <button class="bottom-btn secondary" onclick="addExtra()">➕ Extra</button>
-        <button class="bottom-btn whatsapp" onclick="shareWhatsApp()">📱 Compartir</button>
+        <!-- Bottom Actions -->
+        <div class="bottom-bar">
+            <button class="bottom-btn secondary" onclick="resetAll()">🗑️</button>
+            <button class="bottom-btn secondary" onclick="addExtra()">➕ Extra</button>
+            <button class="bottom-btn import-btn" onclick="openImportModal()">📥 Paulina</button>
+            <button class="bottom-btn whatsapp" onclick="shareWhatsApp()">📱</button>
+        </div>
+    </div><!-- End app-content -->
+
+    <!-- Modal Importar desde Paulina -->
+    <div class="modal-overlay" id="importModal">
+        <div class="modal">
+            <h3>📥 Importar de Paulina Cocina</h3>
+            <p style="font-size: 0.85rem; color: var(--text-light); margin-bottom: 12px;">
+                Pegá el JSON generado por el scraper o ingresá el número de semana
+            </p>
+            <input type="number" id="weekNumberInput" placeholder="Número de semana (ej: 5)" min="1" max="52" style="margin-bottom: 8px;">
+            <textarea id="importJsonInput" placeholder="O pegá el JSON aquí..." style="width: 100%; height: 100px; padding: 12px; border: 2px solid var(--border); border-radius: 10px; font-size: 0.9rem; resize: none; margin-bottom: 12px;"></textarea>
+            <div class="modal-btns">
+                <button class="modal-btn secondary" onclick="closeImportModal()">Cancelar</button>
+                <button class="modal-btn primary" onclick="importFromPaulina()">Importar</button>
+            </div>
+        </div>
     </div>
 
     <!-- Toast -->
     <div class="toast" id="toast"></div>
 
     <script>
+        // ==================== FIREBASE CONFIG ====================
+        const firebaseConfig = {
+            apiKey: "AIzaSyBxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            authDomain: "compras-semanales.firebaseapp.com",
+            projectId: "compras-semanales",
+            storageBucket: "compras-semanales.appspot.com",
+            messagingSenderId: "123456789",
+            appId: "1:123456789:web:abcdef123456"
+        };
+
+        // Usuarios autorizados
+        const ALLOWED_EMAILS = [
+            'matiarona@gmail.com',
+            'vickyswag02@gmail.com'
+        ];
+
+        // Initialize Firebase
+        let db = null;
+        let auth = null;
+        let currentUser = null;
+        let firebaseReady = false;
+
+        try {
+            firebase.initializeApp(firebaseConfig);
+            db = firebase.firestore();
+            auth = firebase.auth();
+            firebaseReady = true;
+            console.log('Firebase inicializado');
+        } catch (error) {
+            console.warn('Firebase no disponible, usando solo localStorage:', error);
+        }
+
+        // ==================== AUTHENTICATION ====================
+        function isEmailAllowed(email) {
+            return ALLOWED_EMAILS.includes(email.toLowerCase());
+        }
+
+        async function signInWithGoogle() {
+            if (!auth) {
+                showLoginError('Firebase no está configurado. Revisá SETUP_FIREBASE.md');
+                return;
+            }
+
+            try {
+                const provider = new firebase.auth.GoogleAuthProvider();
+                provider.setCustomParameters({ prompt: 'select_account' });
+
+                const result = await auth.signInWithPopup(provider);
+                const user = result.user;
+
+                // Verificar si el email está autorizado
+                if (!isEmailAllowed(user.email)) {
+                    await auth.signOut();
+                    showLoginError(`El email ${user.email} no está autorizado. Solo Mati y Vicky pueden usar esta app.`);
+                    return;
+                }
+
+                // Login exitoso, el observer manejará el resto
+            } catch (error) {
+                console.error('Error en login:', error);
+                if (error.code === 'auth/popup-closed-by-user') {
+                    return; // Usuario cerró el popup, no mostrar error
+                }
+                showLoginError('Error al iniciar sesión: ' + error.message);
+            }
+        }
+
+        async function signOutUser() {
+            if (!auth) return;
+
+            try {
+                await auth.signOut();
+                showLoginScreen();
+            } catch (error) {
+                console.error('Error al cerrar sesión:', error);
+            }
+        }
+
+        function showLoginScreen() {
+            document.getElementById('loginScreen').classList.remove('hidden');
+            document.getElementById('appContent').classList.remove('visible');
+        }
+
+        function showAppContent() {
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('appContent').classList.add('visible');
+        }
+
+        function showLoginError(message) {
+            const errorEl = document.getElementById('loginError');
+            errorEl.textContent = message;
+            errorEl.classList.add('show');
+        }
+
+        function updateUserUI(user) {
+            if (!user) return;
+
+            const avatar = document.getElementById('userAvatar');
+            const name = document.getElementById('userName');
+
+            if (user.photoURL) {
+                avatar.innerHTML = `<img src="${user.photoURL}" alt="Avatar">`;
+            } else {
+                avatar.textContent = user.email.charAt(0).toUpperCase();
+            }
+
+            // Mostrar nombre corto
+            const firstName = user.displayName ? user.displayName.split(' ')[0] : user.email.split('@')[0];
+            name.textContent = firstName;
+        }
+
+        // Auth state observer
+        if (auth) {
+            auth.onAuthStateChanged(async (user) => {
+                if (user && isEmailAllowed(user.email)) {
+                    currentUser = user;
+                    updateUserUI(user);
+                    showAppContent();
+                    await loadAllData();
+                } else {
+                    currentUser = null;
+                    showLoginScreen();
+                }
+            });
+        }
+
         // ==================== DATA ====================
         let currentList = 'general';
+        let currentWeekId = null;
+        let weeks = {}; // weekId -> { name, createdAt, items, itemIdCounter, currentList }
         let items = {}; // id -> { name, category, bought, price, isExtra }
         let itemIdCounter = 0;
 
@@ -644,25 +1141,81 @@
         };
 
         // ==================== INIT ====================
-        document.addEventListener('DOMContentLoaded', function() {
-            loadData();
-            if (Object.keys(items).length === 0) {
-                initializeItems();
-            }
-            renderList();
-            updateTotals();
-            
+        document.addEventListener('DOMContentLoaded', async function() {
+            // Setup input listeners
             document.getElementById('registerInput').addEventListener('input', showPreview);
             document.getElementById('registerInput').addEventListener('keypress', e => {
                 if (e.key === 'Enter') processInput();
             });
+
+            // Enter en el input de nueva semana
+            document.getElementById('weekNameInput').addEventListener('keypress', e => {
+                if (e.key === 'Enter') createNewWeek();
+            });
+
+            // Si no hay Firebase Auth configurado, mostrar la app directamente (modo local)
+            if (!auth) {
+                showAppContent();
+                await loadAllData();
+            }
+            // Si hay auth, el observer se encargará de cargar los datos
         });
 
+        async function loadAllData() {
+            updateSyncStatus('syncing', 'Cargando...');
+
+            // Primero cargar de localStorage
+            loadFromLocalStorage();
+
+            // Si Firebase está disponible, sincronizar
+            if (firebaseReady) {
+                try {
+                    await syncFromFirestore();
+                    updateSyncStatus('synced', 'Sincronizado');
+                } catch (error) {
+                    console.error('Error syncing from Firestore:', error);
+                    updateSyncStatus('error', 'Sin conexión');
+                }
+            } else {
+                updateSyncStatus('error', 'Solo local');
+            }
+
+            // Renderizar semanas disponibles
+            renderWeeksDropdown();
+
+            // Si no hay semanas, crear una por defecto
+            if (Object.keys(weeks).length === 0) {
+                const defaultWeekId = createWeekData('Semana 1');
+                currentWeekId = defaultWeekId;
+                await saveWeekToCloud(defaultWeekId);
+            }
+
+            // Seleccionar semana actual
+            if (currentWeekId && weeks[currentWeekId]) {
+                selectWeek(currentWeekId);
+            } else {
+                // Seleccionar la más reciente
+                const weekIds = Object.keys(weeks).sort((a, b) =>
+                    (weeks[b].createdAt || 0) - (weeks[a].createdAt || 0)
+                );
+                if (weekIds.length > 0) {
+                    selectWeek(weekIds[0]);
+                }
+            }
+        }
+
         function initializeItems() {
+            // Reinicializar items de la lista actual (dentro de la semana)
             const data = shoppingData[currentList];
-            items = {};
-            itemIdCounter = 0;
-            
+
+            // Remover items actuales de este listType
+            for (const [id, item] of Object.entries(items)) {
+                if (item.listType === currentList) {
+                    delete items[id];
+                }
+            }
+
+            // Crear nuevos items
             for (const [category, productList] of Object.entries(data)) {
                 for (const product of productList) {
                     items[itemIdCounter++] = {
@@ -963,15 +1516,16 @@
             currentList = type;
             document.querySelectorAll('.list-tab').forEach(t => t.classList.remove('active'));
             event.currentTarget.classList.add('active');
-            
+
             // Check if we have items for this list type
             const hasItems = Object.values(items).some(i => i.listType === type);
             if (!hasItems) {
                 initializeItems();
             }
-            
+
             renderList();
             updateTotals();
+            saveData(); // Guardar cambio de lista
         }
 
         function addExtra() {
@@ -1094,21 +1648,293 @@
 
         // ==================== STORAGE ====================
         function saveData() {
-            localStorage.setItem('paulina_v4', JSON.stringify({ items, itemIdCounter, currentList }));
+            // Guardar estado actual de la semana
+            if (currentWeekId) {
+                weeks[currentWeekId] = {
+                    ...weeks[currentWeekId],
+                    items: items,
+                    itemIdCounter: itemIdCounter,
+                    currentList: currentList,
+                    updatedAt: Date.now()
+                };
+            }
+
+            // Guardar en localStorage
+            saveToLocalStorage();
+
+            // Guardar en la nube
+            if (currentWeekId) {
+                saveWeekToCloud(currentWeekId);
+            }
         }
 
-        function loadData() {
-            const saved = localStorage.getItem('paulina_v4');
+        function saveToLocalStorage() {
+            const data = {
+                weeks: weeks,
+                currentWeekId: currentWeekId
+            };
+            localStorage.setItem('paulina_v5_weeks', JSON.stringify(data));
+        }
+
+        function loadFromLocalStorage() {
+            // Intentar cargar nuevo formato
+            const saved = localStorage.getItem('paulina_v5_weeks');
             if (saved) {
                 const data = JSON.parse(saved);
-                items = data.items || {};
-                itemIdCounter = data.itemIdCounter || 0;
-                currentList = data.currentList || 'general';
-                
-                // Update tab UI
-                document.querySelectorAll('.list-tab').forEach(t => t.classList.remove('active'));
-                document.querySelector(`.list-tab:${currentList === 'general' ? 'first' : 'last'}-child`).classList.add('active');
+                weeks = data.weeks || {};
+                currentWeekId = data.currentWeekId || null;
+                return;
             }
+
+            // Migrar datos del formato anterior
+            const oldSaved = localStorage.getItem('paulina_v4');
+            if (oldSaved) {
+                const oldData = JSON.parse(oldSaved);
+                // Crear una semana con los datos anteriores
+                const weekId = 'week_' + Date.now();
+                weeks[weekId] = {
+                    id: weekId,
+                    name: 'Semana Migrada',
+                    createdAt: Date.now(),
+                    items: oldData.items || {},
+                    itemIdCounter: oldData.itemIdCounter || 0,
+                    currentList: oldData.currentList || 'general'
+                };
+                currentWeekId = weekId;
+                saveToLocalStorage();
+                // Opcional: eliminar datos viejos
+                // localStorage.removeItem('paulina_v4');
+            }
+        }
+
+        async function syncFromFirestore() {
+            if (!firebaseReady || !db) return;
+
+            const snapshot = await db.collection('weeks').get();
+
+            snapshot.forEach(doc => {
+                const weekData = doc.data();
+                const localWeek = weeks[doc.id];
+
+                // Si no existe localmente o el de la nube es más reciente, usar el de la nube
+                if (!localWeek || (weekData.updatedAt > (localWeek.updatedAt || 0))) {
+                    weeks[doc.id] = {
+                        id: doc.id,
+                        ...weekData
+                    };
+                }
+            });
+        }
+
+        async function saveWeekToCloud(weekId) {
+            if (!firebaseReady || !db || !weekId) return;
+
+            const week = weeks[weekId];
+            if (!week) return;
+
+            updateSyncStatus('syncing', 'Guardando...');
+
+            try {
+                await db.collection('weeks').doc(weekId).set({
+                    name: week.name,
+                    createdAt: week.createdAt,
+                    updatedAt: week.updatedAt || Date.now(),
+                    items: week.items || {},
+                    itemIdCounter: week.itemIdCounter || 0,
+                    currentList: week.currentList || 'general'
+                });
+                updateSyncStatus('synced', 'Guardado');
+            } catch (error) {
+                console.error('Error saving to Firestore:', error);
+                updateSyncStatus('error', 'Error al guardar');
+            }
+        }
+
+        async function deleteWeekFromCloud(weekId) {
+            if (!firebaseReady || !db || !weekId) return;
+
+            try {
+                await db.collection('weeks').doc(weekId).delete();
+            } catch (error) {
+                console.error('Error deleting from Firestore:', error);
+            }
+        }
+
+        function updateSyncStatus(status, text) {
+            const statusEl = document.getElementById('syncStatus');
+            const textEl = document.getElementById('syncText');
+
+            statusEl.className = 'sync-status ' + status;
+            textEl.textContent = text;
+        }
+
+        // ==================== WEEKS MANAGEMENT ====================
+        function createWeekData(name) {
+            const weekId = 'week_' + Date.now();
+            weeks[weekId] = {
+                id: weekId,
+                name: name,
+                createdAt: Date.now(),
+                updatedAt: Date.now(),
+                items: {},
+                itemIdCounter: 0,
+                currentList: 'general'
+            };
+
+            // Inicializar items por defecto
+            const data = shoppingData['general'];
+            let counter = 0;
+            const newItems = {};
+
+            for (const [category, productList] of Object.entries(data)) {
+                for (const product of productList) {
+                    newItems[counter++] = {
+                        name: product,
+                        category: category,
+                        bought: false,
+                        price: 0,
+                        isExtra: false,
+                        listType: 'general'
+                    };
+                }
+            }
+
+            // También inicializar veggie
+            const veggieData = shoppingData['veggie'];
+            for (const [category, productList] of Object.entries(veggieData)) {
+                for (const product of productList) {
+                    newItems[counter++] = {
+                        name: product,
+                        category: category,
+                        bought: false,
+                        price: 0,
+                        isExtra: false,
+                        listType: 'veggie'
+                    };
+                }
+            }
+
+            weeks[weekId].items = newItems;
+            weeks[weekId].itemIdCounter = counter;
+
+            return weekId;
+        }
+
+        function renderWeeksDropdown() {
+            const dropdown = document.getElementById('weekDropdown');
+            const weekIds = Object.keys(weeks).sort((a, b) =>
+                (weeks[b].createdAt || 0) - (weeks[a].createdAt || 0)
+            );
+
+            if (weekIds.length === 0) {
+                dropdown.innerHTML = '<option value="">No hay semanas</option>';
+                return;
+            }
+
+            dropdown.innerHTML = weekIds.map(id => {
+                const week = weeks[id];
+                return `<option value="${id}" ${id === currentWeekId ? 'selected' : ''}>${week.name}</option>`;
+            }).join('');
+        }
+
+        function selectWeek(weekId) {
+            if (!weekId || !weeks[weekId]) return;
+
+            currentWeekId = weekId;
+            const week = weeks[weekId];
+
+            // Cargar datos de la semana
+            items = week.items || {};
+            itemIdCounter = week.itemIdCounter || 0;
+            currentList = week.currentList || 'general';
+
+            // Actualizar UI
+            document.getElementById('headerTitle').textContent = '🛒 ' + week.name;
+            document.getElementById('headerSubtitle').textContent = formatWeekDate(week.createdAt);
+
+            // Actualizar dropdown
+            document.getElementById('weekDropdown').value = weekId;
+
+            // Actualizar tabs
+            document.querySelectorAll('.list-tab').forEach(t => t.classList.remove('active'));
+            const tabIndex = currentList === 'general' ? 0 : 1;
+            document.querySelectorAll('.list-tab')[tabIndex]?.classList.add('active');
+
+            // Renderizar
+            renderList();
+            updateTotals();
+
+            // Guardar selección actual
+            saveToLocalStorage();
+        }
+
+        function formatWeekDate(timestamp) {
+            if (!timestamp) return '';
+            const date = new Date(timestamp);
+            return 'Creada el ' + date.toLocaleDateString('es-AR', {
+                day: 'numeric',
+                month: 'long'
+            });
+        }
+
+        function openNewWeekModal() {
+            document.getElementById('newWeekModal').classList.add('active');
+            document.getElementById('weekNameInput').value = '';
+            document.getElementById('weekNameInput').focus();
+        }
+
+        function closeNewWeekModal() {
+            document.getElementById('newWeekModal').classList.remove('active');
+        }
+
+        async function createNewWeek() {
+            const input = document.getElementById('weekNameInput');
+            const name = input.value.trim();
+
+            if (!name) {
+                showToast('Escribí un nombre para la semana', 'warning');
+                return;
+            }
+
+            const weekId = createWeekData(name);
+            await saveWeekToCloud(weekId);
+
+            closeNewWeekModal();
+            renderWeeksDropdown();
+            selectWeek(weekId);
+
+            showToast('Semana creada', 'success');
+        }
+
+        async function deleteCurrentWeek() {
+            if (!currentWeekId) return;
+
+            const weekCount = Object.keys(weeks).length;
+            if (weekCount <= 1) {
+                showToast('No podés eliminar la única semana', 'warning');
+                return;
+            }
+
+            const weekName = weeks[currentWeekId]?.name || 'esta semana';
+            if (!confirm(`¿Eliminar "${weekName}"? Se perderán todos los datos.`)) return;
+
+            const weekIdToDelete = currentWeekId;
+
+            // Eliminar de la nube
+            await deleteWeekFromCloud(weekIdToDelete);
+
+            // Eliminar localmente
+            delete weeks[weekIdToDelete];
+
+            // Seleccionar otra semana
+            const remainingWeeks = Object.keys(weeks);
+            currentWeekId = remainingWeeks[0];
+
+            saveToLocalStorage();
+            renderWeeksDropdown();
+            selectWeek(currentWeekId);
+
+            showToast('Semana eliminada', 'success');
         }
 
         // ==================== TOAST ====================
@@ -1117,6 +1943,170 @@
             toast.textContent = msg;
             toast.className = `toast show ${type}`;
             setTimeout(() => toast.classList.remove('show'), 2500);
+        }
+
+        // ==================== IMPORT FROM PAULINA ====================
+        function openImportModal() {
+            document.getElementById('importModal').classList.add('active');
+            document.getElementById('weekNumberInput').value = '';
+            document.getElementById('importJsonInput').value = '';
+            document.getElementById('weekNumberInput').focus();
+        }
+
+        function closeImportModal() {
+            document.getElementById('importModal').classList.remove('active');
+        }
+
+        async function importFromPaulina() {
+            const weekNumber = document.getElementById('weekNumberInput').value;
+            const jsonInput = document.getElementById('importJsonInput').value.trim();
+
+            if (!weekNumber && !jsonInput) {
+                showToast('Ingresá un número de semana o pegá el JSON', 'warning');
+                return;
+            }
+
+            let data;
+
+            if (jsonInput) {
+                // Parsear JSON pegado
+                try {
+                    data = JSON.parse(jsonInput);
+                } catch (e) {
+                    showToast('JSON inválido', 'error');
+                    return;
+                }
+            } else if (weekNumber) {
+                // Buscar en Firestore si ya existe data scrapeada
+                showToast('Buscando semana ' + weekNumber + '...', 'success');
+
+                try {
+                    // Primero intentar cargar desde Firestore (si el scraper lo subió)
+                    if (firebaseReady && db) {
+                        const doc = await db.collection('paulina_menus').doc('semana_' + weekNumber).get();
+                        if (doc.exists) {
+                            data = doc.data();
+                        }
+                    }
+
+                    // Si no existe, intentar scrapear en tiempo real (esto solo funciona si hay un proxy/backend)
+                    if (!data) {
+                        showToast('Semana ' + weekNumber + ' no encontrada. Ejecutá el scraper primero.', 'warning');
+                        return;
+                    }
+                } catch (error) {
+                    console.error('Error buscando semana:', error);
+                    showToast('Error al buscar la semana', 'error');
+                    return;
+                }
+            }
+
+            if (!data || (!data.general && !data.veggie)) {
+                showToast('Datos inválidos', 'error');
+                return;
+            }
+
+            // Crear nueva semana con los datos importados
+            const weekName = data.titulo || `Semana ${weekNumber || 'Importada'}`;
+            const weekId = 'week_' + Date.now();
+
+            let counter = 0;
+            const newItems = {};
+
+            // Procesar lista general
+            if (data.general) {
+                for (const [category, products] of Object.entries(data.general)) {
+                    const categoryName = mapCategoryName(category);
+                    for (const product of products) {
+                        newItems[counter++] = {
+                            name: product,
+                            category: categoryName,
+                            bought: false,
+                            price: 0,
+                            isExtra: false,
+                            listType: 'general'
+                        };
+                    }
+                }
+            }
+
+            // Procesar lista veggie
+            if (data.veggie) {
+                for (const [category, products] of Object.entries(data.veggie)) {
+                    const categoryName = mapCategoryName(category);
+                    for (const product of products) {
+                        newItems[counter++] = {
+                            name: product,
+                            category: categoryName,
+                            bought: false,
+                            price: 0,
+                            isExtra: false,
+                            listType: 'veggie'
+                        };
+                    }
+                }
+            }
+
+            weeks[weekId] = {
+                id: weekId,
+                name: weekName,
+                createdAt: Date.now(),
+                updatedAt: Date.now(),
+                items: newItems,
+                itemIdCounter: counter,
+                currentList: 'general',
+                source: 'paulina',
+                sourceData: {
+                    semana: data.semana || weekNumber,
+                    fechas: data.fechas || ''
+                }
+            };
+
+            await saveWeekToCloud(weekId);
+            closeImportModal();
+            renderWeeksDropdown();
+            selectWeek(weekId);
+
+            const totalItems = Object.keys(newItems).length;
+            showToast(`Importados ${totalItems} productos`, 'success');
+        }
+
+        function mapCategoryName(category) {
+            // Mapear nombres de categoría del scraper a los de la app
+            const lower = category.toLowerCase();
+
+            if (lower.includes('supermercado')) return 'Supermercado 🏪';
+            if (lower.includes('carne')) return 'Carnes 🥩';
+            if (lower.includes('dietética') || lower.includes('dietetica')) return 'Dietética 🥗';
+            if (lower.includes('verdulería') || lower.includes('verduleria')) return 'Verdulería 🥬';
+            if (lower.includes('yapa')) return 'Yapa ⭐';
+            if (lower.includes('comodín') || lower.includes('comodin')) return 'Comodín 👑';
+            if (lower.includes('casa') || lower.includes('seguro')) return 'Ya tenés ✅';
+
+            // Si ya tiene emoji, devolverlo como está
+            if (/[\u{1F300}-\u{1F9FF}]/u.test(category)) return category;
+
+            return category;
+        }
+
+        // Función para que el scraper pueda subir datos directamente
+        async function uploadPaulinaMenu(weekNumber, data) {
+            if (!firebaseReady || !db) {
+                console.error('Firebase no disponible');
+                return false;
+            }
+
+            try {
+                await db.collection('paulina_menus').doc('semana_' + weekNumber).set({
+                    ...data,
+                    uploadedAt: Date.now()
+                });
+                console.log('Menu semana ' + weekNumber + ' subido correctamente');
+                return true;
+            } catch (error) {
+                console.error('Error subiendo menú:', error);
+                return false;
+            }
         }
     </script>
 </body>
