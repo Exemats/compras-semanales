@@ -2102,7 +2102,13 @@
 
             // Actualizar UI
             document.getElementById('headerTitle').textContent = '🛒 ' + week.name;
-            document.getElementById('headerSubtitle').textContent = formatWeekDate(week.createdAt);
+
+            // Mostrar fechas del menú si es de Paulina, sino la fecha de creación
+            if (week.sourceData && week.sourceData.fechas) {
+                document.getElementById('headerSubtitle').textContent = week.sourceData.fechas;
+            } else {
+                document.getElementById('headerSubtitle').textContent = formatWeekDate(week.createdAt);
+            }
 
             // Actualizar dropdown
             document.getElementById('weekDropdown').value = weekId;

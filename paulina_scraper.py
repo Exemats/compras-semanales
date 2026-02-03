@@ -52,14 +52,19 @@ class PaulinaExtractor:
         'casa': ('Ya tenés en casa ✅', 7),
     }
 
-    def __init__(self, semana: int = None):
+    # Días de la semana para extraer recetas
+    DIAS = ['lunes', 'martes', 'miércoles', 'miercoles', 'jueves', 'viernes', 'sábado', 'sabado', 'domingo']
+
+    def __init__(self, semana: int = None, modo: str = 'general'):
         self.semana = semana
+        self.modo = modo  # 'general', 'dias', o nombre de día específico
         self.html_content = None
         self.soup = None
         self.titulo = ""
         self.fechas = ""
         self.lista_general = {}
         self.lista_veggie = {}
+        self.recetas_por_dia = {}  # { 'lunes': {'nombre': '...', 'ingredientes': [...]} }
 
     def detectar_semana_actual(self) -> int:
         """Detecta qué semana está disponible (la más reciente)."""
@@ -102,21 +107,50 @@ class PaulinaExtractor:
             self.html_content = response.text
             self.soup = BeautifulSoup(self.html_content, 'html.parser')
 
+            # Extraer título
             title_tag = self.soup.find('title')
             if title_tag:
                 self.titulo = title_tag.text.split(' - ')[0].strip()
 
-            meta_desc = self.soup.find('meta', {'name': 'description'})
-            if meta_desc and meta_desc.get('content'):
-                self.fechas = meta_desc['content']
+            # Extraer fechas - buscar en el título o en la página
+            self._extraer_fechas()
 
             print(f"✅ Descargado: {self.titulo}")
-            print(f"   {self.fechas}")
+            if self.fechas:
+                print(f"   📅 {self.fechas}")
             return True
 
         except requests.RequestException as e:
             print(f"❌ Error descargando: {e}")
             return False
+
+    def _extraer_fechas(self):
+        """Extrae las fechas del menú (ej: '02 al 06 de febrero')."""
+        # Buscar en h1, h2, h3 que contengan fechas
+        for heading in self.soup.find_all(['h1', 'h2', 'h3']):
+            texto = heading.get_text(strip=True)
+            # Buscar patrón de fechas: "del X al Y de mes" o "X al Y de mes"
+            match = re.search(r'(?:del\s+)?(\d{1,2})\s*(?:al|a)\s*(\d{1,2})\s*(?:de\s+)?(\w+)', texto, re.IGNORECASE)
+            if match:
+                dia1, dia2, mes = match.groups()
+                self.fechas = f"{dia1} al {dia2} de {mes.lower()}"
+                return
+
+        # Buscar en elementos con clase que contenga 'date' o 'fecha'
+        for elem in self.soup.find_all(class_=re.compile(r'date|fecha', re.I)):
+            texto = elem.get_text(strip=True)
+            if re.search(r'\d{1,2}.*(?:al|a).*\d{1,2}', texto):
+                self.fechas = texto
+                return
+
+        # Fallback: buscar en meta description
+        meta_desc = self.soup.find('meta', {'name': 'description'})
+        if meta_desc and meta_desc.get('content'):
+            content = meta_desc['content']
+            match = re.search(r'(?:del\s+)?(\d{1,2})\s*(?:al|a)\s*(\d{1,2})\s*(?:de\s+)?(\w+)', content, re.IGNORECASE)
+            if match:
+                dia1, dia2, mes = match.groups()
+                self.fechas = f"{dia1} al {dia2} de {mes.lower()}"
 
     def _detectar_categoria(self, texto: str) -> tuple:
         """Detecta la categoría basándose en el texto."""
@@ -171,16 +205,62 @@ class PaulinaExtractor:
         return categorias
 
     def _extraer_lista_alternativo(self) -> dict:
-        """Método alternativo de extracción."""
+        """Método alternativo de extracción - solo lista general, no recetas diarias."""
         categorias = {}
-        labels = self.soup.find_all('label')
+
+        # Buscar sección que contenga "Lista de compras" o similar
+        lista_section = None
+        for elem in self.soup.find_all(['div', 'section']):
+            texto = elem.get_text()[:200].lower()
+            if 'lista de compras' in texto or 'lista general' in texto:
+                # Verificar que NO sea una receta diaria
+                if not any(dia in texto for dia in self.DIAS):
+                    lista_section = elem
+                    break
+
+        # Si no encontramos sección específica, buscar por clases comunes
+        if not lista_section:
+            for elem in self.soup.find_all(class_=re.compile(r'lista|shopping|compras', re.I)):
+                if not any(dia in elem.get_text()[:100].lower() for dia in self.DIAS):
+                    lista_section = elem
+                    break
+
+        # Extraer labels solo de la sección encontrada, o de toda la página filtrando
+        if lista_section:
+            labels = lista_section.find_all('label')
+        else:
+            # Fallback: usar todos los labels pero filtrar los de recetas diarias
+            labels = []
+            for label in self.soup.find_all('label'):
+                # Verificar que el label no esté dentro de una sección de receta diaria
+                parent_text = ''
+                for parent in label.parents:
+                    if parent.name in ['div', 'section']:
+                        parent_text = parent.get_text()[:200].lower()
+                        break
+
+                # Excluir si está en sección de receta de un día
+                es_receta_diaria = any(
+                    f'{dia}' in parent_text and ('receta' in parent_text or 'ingredientes' in parent_text)
+                    for dia in self.DIAS
+                )
+
+                if not es_receta_diaria:
+                    labels.append(label)
+
         categoria_actual = 'Supermercado 🏪'
+        items_vistos = set()  # Para evitar duplicados
 
         for label in labels:
             texto = label.get_text(strip=True)
             texto = re.sub(r'^[\[\]✓\s]+', '', texto).strip()
 
             if not texto or len(texto) < 2:
+                continue
+
+            # Normalizar para comparar duplicados
+            texto_normalizado = texto.lower().strip()
+            if texto_normalizado in items_vistos:
                 continue
 
             cat_detectada, orden = self._detectar_categoria(texto)
@@ -191,47 +271,118 @@ class PaulinaExtractor:
             if categoria_actual not in categorias:
                 categorias[categoria_actual] = {'orden': 1, 'items': []}
 
-            if texto not in categorias[categoria_actual]['items']:
-                categorias[categoria_actual]['items'].append(texto)
+            categorias[categoria_actual]['items'].append(texto)
+            items_vistos.add(texto_normalizado)
 
         return categorias
 
+    def _extraer_recetas_por_dia(self) -> dict:
+        """Extrae los ingredientes de cada receta diaria."""
+        recetas = {}
+
+        for dia in ['lunes', 'martes', 'miércoles', 'jueves', 'viernes']:
+            # Buscar sección del día
+            for elem in self.soup.find_all(['div', 'section', 'h2', 'h3']):
+                texto = elem.get_text()[:100].lower()
+                if dia in texto or dia.replace('é', 'e') in texto:
+                    # Encontrar la sección padre que contiene la receta
+                    parent = elem
+                    for _ in range(3):
+                        if parent.parent:
+                            parent = parent.parent
+
+                    # Buscar nombre de receta e ingredientes
+                    nombre_receta = ""
+                    ingredientes = []
+
+                    # Buscar título de receta
+                    for h in parent.find_all(['h2', 'h3', 'h4']):
+                        h_texto = h.get_text(strip=True)
+                        if len(h_texto) > 5 and dia not in h_texto.lower():
+                            nombre_receta = h_texto
+                            break
+
+                    # Buscar ingredientes (labels dentro de esta sección)
+                    for label in parent.find_all('label'):
+                        ing = label.get_text(strip=True)
+                        ing = re.sub(r'^[\[\]✓\s]+', '', ing).strip()
+                        if ing and len(ing) > 1:
+                            ingredientes.append(ing)
+
+                    if nombre_receta or ingredientes:
+                        recetas[dia.capitalize()] = {
+                            'nombre': nombre_receta,
+                            'ingredientes': ingredientes
+                        }
+                    break
+
+        return recetas
+
     def extraer(self) -> bool:
-        """Extrae las listas de compras del HTML."""
+        """Extrae las listas de compras del HTML según el modo seleccionado."""
         if not self.soup:
             print("❌ Primero hay que descargar el HTML")
             return False
 
-        print("🔍 Extrayendo listas de compras...")
+        print(f"🔍 Extrayendo listas de compras (modo: {self.modo})...")
 
-        self.lista_general = self._extraer_lista('lista_compra_g')
-        self.lista_veggie = self._extraer_lista('lista_compra_v')
+        if self.modo == 'dias':
+            # Extraer recetas por día
+            self.recetas_por_dia = self._extraer_recetas_por_dia()
+            print(f"   📅 Recetas encontradas: {len(self.recetas_por_dia)} días")
+            for dia, data in self.recetas_por_dia.items():
+                print(f"      {dia}: {data['nombre']} ({len(data['ingredientes'])} ingredientes)")
+            return len(self.recetas_por_dia) > 0
 
-        if not self.lista_general:
-            self.lista_general = self._extraer_lista_alternativo()
-            self.lista_veggie = self.lista_general.copy()
+        elif self.modo in self.DIAS or self.modo.lower() in self.DIAS:
+            # Extraer solo un día específico
+            self.recetas_por_dia = self._extraer_recetas_por_dia()
+            dia_buscado = self.modo.lower().replace('á', 'a').replace('é', 'e')
+            for dia, data in self.recetas_por_dia.items():
+                if dia.lower() == dia_buscado or dia.lower().replace('é', 'e') == dia_buscado:
+                    self.recetas_por_dia = {dia: data}
+                    print(f"   📅 {dia}: {data['nombre']} ({len(data['ingredientes'])} ingredientes)")
+                    return True
+            print(f"   ⚠️  No se encontró receta para {self.modo}")
+            return False
 
-        total_general = sum(len(cat['items']) for cat in self.lista_general.values())
-        total_veggie = sum(len(cat['items']) for cat in self.lista_veggie.values())
+        else:
+            # Modo 'general' (por defecto) - solo la lista de compras semanal
+            self.lista_general = self._extraer_lista('lista_compra_g')
+            self.lista_veggie = self._extraer_lista('lista_compra_v')
 
-        print(f"   📋 Lista general: {total_general} items en {len(self.lista_general)} categorías")
-        print(f"   🥬 Lista veggie: {total_veggie} items en {len(self.lista_veggie)} categorías")
+            if not self.lista_general:
+                self.lista_general = self._extraer_lista_alternativo()
+                self.lista_veggie = self.lista_general.copy()
 
-        return total_general > 0
+            total_general = sum(len(cat['items']) for cat in self.lista_general.values())
+            total_veggie = sum(len(cat['items']) for cat in self.lista_veggie.values())
+
+            print(f"   📋 Lista general: {total_general} items en {len(self.lista_general)} categorías")
+            print(f"   🥬 Lista veggie: {total_veggie} items en {len(self.lista_veggie)} categorías")
+
+            return total_general > 0
 
     def generar_json(self) -> dict:
         """Genera el JSON de la lista."""
         def ordenar_categorias(cats):
             return dict(sorted(cats.items(), key=lambda x: x[1].get('orden', 99)))
 
-        return {
+        resultado = {
             'titulo': self.titulo,
             'fechas': self.fechas,
             'semana': self.semana,
-            'general': {cat: data['items'] for cat, data in ordenar_categorias(self.lista_general).items()},
-            'veggie': {cat: data['items'] for cat, data in ordenar_categorias(self.lista_veggie).items()},
+            'modo': self.modo,
             'generado': datetime.now().isoformat()
         }
+
+        if self.modo == 'general' or (self.modo not in ['dias'] + self.DIAS):
+            resultado['general'] = {cat: data['items'] for cat, data in ordenar_categorias(self.lista_general).items()}
+            resultado['veggie'] = {cat: data['items'] for cat, data in ordenar_categorias(self.lista_veggie).items()}
+        else:
+            resultado['recetas'] = self.recetas_por_dia
+
+        return resultado
 
 
 class FirebaseUploader:
@@ -297,14 +448,21 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog='''
 Ejemplos:
-  python paulina_scraper.py                    # Descarga la semana más reciente
+  python paulina_scraper.py                    # Descarga la semana más reciente (lista general)
   python paulina_scraper.py --semana 4         # Descarga semana 4
   python paulina_scraper.py --listar           # Lista semanas disponibles
   python paulina_scraper.py --todas            # Descarga todas las semanas disponibles
   python paulina_scraper.py --rango 3-5        # Descarga semanas 3, 4 y 5
+
+Modos de extracción:
+  python paulina_scraper.py --modo general     # Solo la lista de compras semanal (por defecto)
+  python paulina_scraper.py --modo dias        # Ingredientes de cada receta diaria
+  python paulina_scraper.py --modo lunes       # Solo la receta del lunes
 '''
     )
     parser.add_argument('--semana', '-s', type=int, help='Número de semana específico')
+    parser.add_argument('--modo', '-m', default='general',
+                       help='Modo de extracción: general (lista semanal), dias (recetas diarias), o día específico (lunes, martes...)')
     parser.add_argument('--listar', '-l', action='store_true', help='Listar semanas disponibles sin descargar')
     parser.add_argument('--todas', '-t', action='store_true', help='Descargar todas las semanas disponibles')
     parser.add_argument('--rango', '-r', type=str, help='Rango de semanas (ej: 3-5)')
@@ -354,7 +512,7 @@ Ejemplos:
     exitosas = 0
     for semana in semanas_a_procesar:
         print(f"\n{'='*50}")
-        extractor = PaulinaExtractor(semana)
+        extractor = PaulinaExtractor(semana, modo=args.modo)
 
         # Descargar
         if not extractor.descargar():
@@ -370,22 +528,31 @@ Ejemplos:
         datos = extractor.generar_json()
 
         # Guardar JSON local
-        output_path = args.output.replace('.json', f'_s{extractor.semana}.json')
+        suffix = f'_s{extractor.semana}'
+        if args.modo != 'general':
+            suffix += f'_{args.modo}'
+        output_path = args.output.replace('.json', f'{suffix}.json')
         with open(output_path, 'w', encoding='utf-8') as f:
             json.dump(datos, f, ensure_ascii=False, indent=2)
         print(f"📄 JSON guardado: {output_path}")
 
-        # Subir a Firebase
-        if uploader and uploader.db:
+        # Subir a Firebase (solo modo general)
+        if uploader and uploader.db and args.modo == 'general':
             uploader.upload(extractor.semana, datos)
 
         exitosas += 1
         print(f"✅ Semana {extractor.semana}: {datos['titulo']}")
+        if datos.get('fechas'):
+            print(f"   📅 {datos['fechas']}")
 
-        # Mostrar resumen
-        total_general = sum(len(items) for items in datos['general'].values())
-        total_veggie = sum(len(items) for items in datos['veggie'].values())
-        print(f"   General: {total_general} items | Veggie: {total_veggie} items")
+        # Mostrar resumen según modo
+        if 'general' in datos:
+            total_general = sum(len(items) for items in datos['general'].values())
+            total_veggie = sum(len(items) for items in datos.get('veggie', {}).values())
+            print(f"   General: {total_general} items | Veggie: {total_veggie} items")
+        elif 'recetas' in datos:
+            for dia, receta in datos['recetas'].items():
+                print(f"   {dia}: {receta['nombre']} ({len(receta['ingredientes'])} ingredientes)")
 
     # Resumen final
     print(f"\n{'='*50}")
