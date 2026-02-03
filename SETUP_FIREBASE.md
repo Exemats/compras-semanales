@@ -115,21 +115,47 @@ python paulina_scraper.py --semana 5
 python paulina_scraper.py --local
 ```
 
-### 4. Automatizar (Opcional)
+### 4. Automatizar con GitHub Actions (Recomendado)
 
-Para que se ejecute automaticamente cada viernes:
+El scraper se ejecuta automaticamente cada sabado a las 8:00 AM (Argentina) usando GitHub Actions.
 
-**Linux/Mac (cron):**
+**Configuracion:**
+
+1. Ir a tu repositorio en GitHub
+2. Click en **Settings** > **Secrets and variables** > **Actions**
+3. Click en **New repository secret**
+4. Nombre: `FIREBASE_CREDENTIALS`
+5. Valor: Pegar el contenido COMPLETO del archivo `firebase_credentials.json`
+6. Click **Add secret**
+
+Una vez configurado, el scraper:
+- Se ejecuta automaticamente cada sabado a las 8:00 AM
+- Descarga el menu de Paulina Cocina
+- Lo sube a Firebase
+- Queda disponible en la webapp con el boton "Importar Paulina"
+
+**Ejecutar manualmente:**
+
+1. Ir a tu repositorio en GitHub
+2. Click en **Actions**
+3. Seleccionar **Scraper Paulina Cocina Automatico**
+4. Click en **Run workflow**
+5. (Opcional) Ingresar numero de semana especifico
+6. Click **Run workflow**
+
+**Alternativa: cron local (si no queres usar GitHub Actions)**
+
+Linux/Mac:
 ```bash
 crontab -e
 # Agregar esta linea:
-0 9 * * 5 cd /ruta/al/proyecto && python paulina_scraper.py
+0 9 * * 6 cd /ruta/al/proyecto && python paulina_scraper.py
 ```
 
-**Windows (Task Scheduler):**
+Windows (Task Scheduler):
 ```powershell
 $action = New-ScheduledTaskAction -Execute "python" -Argument "C:\ruta\al\proyecto\paulina_scraper.py"
-$trigger = New-ScheduledTaskTrigger -Weekly -DaysOfWeek Friday -At 9am
+$trigger = New-ScheduledTaskTrigger -Weekly -DaysOfWeek Saturday -At 9am
 Register-ScheduledTask -Action $action -Trigger $trigger -TaskName "PaulinaScraper"
 ```
 

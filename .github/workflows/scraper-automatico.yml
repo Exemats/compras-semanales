@@ -1,0 +1,50 @@
+name: Scraper Paulina Cocina Automatico
+
+# Ejecuta todos los sabados a las 8:00 AM Argentina (UTC-3 = 11:00 UTC)
+on:
+  schedule:
+    - cron: '0 11 * * 6'  # Sabados 8:00 AM Argentina
+
+  # Tambien permite ejecutar manualmente desde GitHub
+  workflow_dispatch:
+    inputs:
+      semana:
+        description: 'Numero de semana especifico (opcional)'
+        required: false
+        type: string
+
+jobs:
+  scraper:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Instalar dependencias
+        run: |
+          pip install requests beautifulsoup4 firebase-admin
+
+      - name: Crear archivo de credenciales
+        env:
+          FIREBASE_CREDENTIALS: ${{ secrets.FIREBASE_CREDENTIALS }}
+        run: |
+          echo "$FIREBASE_CREDENTIALS" > firebase_credentials.json
+
+      - name: Ejecutar scraper
+        run: |
+          if [ -n "${{ github.event.inputs.semana }}" ]; then
+            python paulina_scraper.py --semana ${{ github.event.inputs.semana }}
+          else
+            python paulina_scraper.py
+          fi
+
+      - name: Limpiar credenciales
+        if: always()
+        run: |
+          rm -f firebase_credentials.json
