@@ -8,8 +8,22 @@ on:
   # Tambien permite ejecutar manualmente desde GitHub
   workflow_dispatch:
     inputs:
+      modo:
+        description: 'Modo de ejecucion'
+        required: true
+        default: 'reciente'
+        type: choice
+        options:
+          - reciente
+          - semana_especifica
+          - todas
+          - rango
       semana:
-        description: 'Numero de semana especifico (opcional)'
+        description: 'Numero de semana (solo si modo = semana_especifica)'
+        required: false
+        type: string
+      rango:
+        description: 'Rango de semanas ej: 3-5 (solo si modo = rango)'
         required: false
         type: string
 
@@ -38,11 +52,43 @@ jobs:
 
       - name: Ejecutar scraper
         run: |
-          if [ -n "${{ github.event.inputs.semana }}" ]; then
-            python paulina_scraper.py --semana ${{ github.event.inputs.semana }}
-          else
-            python paulina_scraper.py
+          MODO="${{ github.event.inputs.modo }}"
+
+          # Si es ejecucion programada (sin inputs), usar modo reciente
+          if [ -z "$MODO" ]; then
+            MODO="reciente"
           fi
+
+          case "$MODO" in
+            "reciente")
+              echo "📅 Descargando semana mas reciente..."
+              python paulina_scraper.py
+              ;;
+            "semana_especifica")
+              SEMANA="${{ github.event.inputs.semana }}"
+              if [ -n "$SEMANA" ]; then
+                echo "📅 Descargando semana $SEMANA..."
+                python paulina_scraper.py --semana "$SEMANA"
+              else
+                echo "❌ Error: Debes especificar un numero de semana"
+                exit 1
+              fi
+              ;;
+            "todas")
+              echo "📅 Descargando todas las semanas disponibles..."
+              python paulina_scraper.py --todas
+              ;;
+            "rango")
+              RANGO="${{ github.event.inputs.rango }}"
+              if [ -n "$RANGO" ]; then
+                echo "📅 Descargando rango de semanas: $RANGO..."
+                python paulina_scraper.py --rango "$RANGO"
+              else
+                echo "❌ Error: Debes especificar un rango (ej: 3-5)"
+                exit 1
+              fi
+              ;;
+          esac
 
       - name: Limpiar credenciales
         if: always()
