@@ -206,6 +206,226 @@
             color: var(--text);
         }
 
+        .modal-close {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--text-light);
+        }
+
+        /* ==================== IMPORT MODAL ==================== */
+        .import-modal {
+            max-width: 420px;
+            max-height: 85vh;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .import-tabs {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 16px;
+            background: var(--bg);
+            padding: 4px;
+            border-radius: 10px;
+        }
+
+        .import-tab {
+            flex: 1;
+            padding: 8px 12px;
+            border: none;
+            background: transparent;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            color: var(--text-light);
+        }
+
+        .import-tab.active {
+            background: white;
+            color: var(--primary);
+            font-weight: 600;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .import-content {
+            display: none;
+        }
+
+        .import-content.active {
+            display: block;
+        }
+
+        .import-hint {
+            font-size: 0.8rem;
+            color: var(--text-light);
+            margin-bottom: 12px;
+        }
+
+        .available-weeks {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .week-option {
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            border: 2px solid var(--border);
+            border-radius: 10px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .week-option:hover {
+            border-color: var(--primary);
+            background: #fff5f5;
+        }
+
+        .week-option .week-info {
+            flex: 1;
+        }
+
+        .week-option .week-name {
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        .week-option .week-dates {
+            font-size: 0.8rem;
+            color: var(--text-light);
+        }
+
+        .week-option .week-count {
+            font-size: 0.75rem;
+            color: var(--primary);
+            background: #fff0f0;
+            padding: 4px 8px;
+            border-radius: 12px;
+        }
+
+        .scraper-controls {
+            display: flex;
+            gap: 8px;
+        }
+
+        .scraper-controls input {
+            flex: 1;
+            margin-bottom: 0;
+        }
+
+        .scraper-controls button {
+            flex-shrink: 0;
+        }
+
+        .scraper-status {
+            margin-top: 12px;
+            padding: 12px;
+            border-radius: 10px;
+            font-size: 0.85rem;
+            display: none;
+        }
+
+        .scraper-status.loading {
+            display: block;
+            background: #e3f2fd;
+            color: #1565c0;
+        }
+
+        .scraper-status.success {
+            display: block;
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        .scraper-status.error {
+            display: block;
+            background: #ffebee;
+            color: #c62828;
+        }
+
+        #importJsonInput {
+            width: 100%;
+            height: 120px;
+            padding: 12px;
+            border: 2px solid var(--border);
+            border-radius: 10px;
+            font-size: 0.85rem;
+            resize: none;
+            font-family: monospace;
+        }
+
+        /* Preview */
+        .import-preview {
+            margin-top: 16px;
+            padding: 16px;
+            background: var(--bg);
+            border-radius: 12px;
+        }
+
+        .import-preview h4 {
+            margin-bottom: 12px;
+            font-size: 0.95rem;
+        }
+
+        .preview-header {
+            margin-bottom: 12px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .preview-header .title {
+            font-weight: 600;
+            font-size: 1rem;
+        }
+
+        .preview-header .dates {
+            font-size: 0.85rem;
+            color: var(--text-light);
+        }
+
+        .preview-categories {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .preview-category {
+            margin-bottom: 8px;
+        }
+
+        .preview-category .cat-name {
+            font-weight: 600;
+            font-size: 0.85rem;
+            margin-bottom: 4px;
+        }
+
+        .preview-category .cat-items {
+            font-size: 0.8rem;
+            color: var(--text-light);
+            padding-left: 12px;
+        }
+
+        .preview-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 16px;
+        }
+
+        .no-weeks {
+            text-align: center;
+            padding: 24px;
+            color: var(--text-light);
+        }
+
+        .no-weeks button {
+            margin-top: 12px;
+        }
+
         /* ==================== QUICK REGISTER ==================== */
         .quick-register {
             background: linear-gradient(135deg, #1e3a5f, #2d5a87);
@@ -968,17 +1188,53 @@
 
     <!-- Modal Importar desde Paulina -->
     <div class="modal-overlay" id="importModal">
-        <div class="modal">
+        <div class="modal import-modal">
             <h3>📥 Importar de Paulina Cocina</h3>
-            <p style="font-size: 0.85rem; color: var(--text-light); margin-bottom: 12px;">
-                Pegá el JSON generado por el scraper o ingresá el número de semana
-            </p>
-            <input type="number" id="weekNumberInput" placeholder="Número de semana (ej: 5)" min="1" max="52" style="margin-bottom: 8px;">
-            <textarea id="importJsonInput" placeholder="O pegá el JSON aquí..." style="width: 100%; height: 100px; padding: 12px; border: 2px solid var(--border); border-radius: 10px; font-size: 0.9rem; resize: none; margin-bottom: 12px;"></textarea>
-            <div class="modal-btns">
-                <button class="modal-btn secondary" onclick="closeImportModal()">Cancelar</button>
-                <button class="modal-btn primary" onclick="importFromPaulina()">Importar</button>
+
+            <!-- Tabs -->
+            <div class="import-tabs">
+                <button class="import-tab active" onclick="switchImportTab('disponibles')">📋 Disponibles</button>
+                <button class="import-tab" onclick="switchImportTab('scrapear')">🔄 Scrapear</button>
+                <button class="import-tab" onclick="switchImportTab('json')">📄 JSON</button>
             </div>
+
+            <!-- Tab: Semanas disponibles en Firebase -->
+            <div class="import-content active" id="tabDisponibles">
+                <p class="import-hint">Semanas ya scrapeadas y listas para importar:</p>
+                <div class="available-weeks" id="availableWeeksList">
+                    <div class="loading">Cargando...</div>
+                </div>
+            </div>
+
+            <!-- Tab: Scrapear nueva semana -->
+            <div class="import-content" id="tabScrapear">
+                <p class="import-hint">Scrapear una semana directamente desde Paulina Cocina:</p>
+                <div class="scraper-controls">
+                    <input type="number" id="scrapeWeekNumber" placeholder="Número de semana" min="1" max="52">
+                    <button class="modal-btn primary" onclick="scrapeFromWeb()">🔄 Scrapear</button>
+                </div>
+                <div class="scraper-status" id="scraperStatus"></div>
+            </div>
+
+            <!-- Tab: Pegar JSON -->
+            <div class="import-content" id="tabJson">
+                <p class="import-hint">Pegá el JSON generado por el scraper:</p>
+                <textarea id="importJsonInput" placeholder="Pegá el JSON aquí..."></textarea>
+                <button class="modal-btn primary" onclick="importFromJson()" style="margin-top: 8px; width: 100%;">Importar JSON</button>
+            </div>
+
+            <!-- Preview de la lista -->
+            <div class="import-preview" id="importPreview" style="display: none;">
+                <h4>Vista previa</h4>
+                <div class="preview-header" id="previewHeader"></div>
+                <div class="preview-categories" id="previewCategories"></div>
+                <div class="preview-actions">
+                    <button class="modal-btn secondary" onclick="cancelPreview()">Cancelar</button>
+                    <button class="modal-btn primary" onclick="confirmImport()">✓ Importar</button>
+                </div>
+            </div>
+
+            <button class="modal-close" onclick="closeImportModal()">×</button>
         </div>
     </div>
 
@@ -2204,68 +2460,320 @@
         }
 
         // ==================== IMPORT FROM PAULINA ====================
+        let pendingImportData = null; // Datos pendientes de importar
+
         function openImportModal() {
             document.getElementById('importModal').classList.add('active');
-            document.getElementById('weekNumberInput').value = '';
             document.getElementById('importJsonInput').value = '';
-            document.getElementById('weekNumberInput').focus();
+            document.getElementById('scrapeWeekNumber').value = '';
+            document.getElementById('scraperStatus').className = 'scraper-status';
+            document.getElementById('importPreview').style.display = 'none';
+            pendingImportData = null;
+
+            // Cargar semanas disponibles
+            loadAvailableWeeks();
+
+            // Mostrar tab de disponibles
+            switchImportTab('disponibles');
         }
 
         function closeImportModal() {
             document.getElementById('importModal').classList.remove('active');
+            pendingImportData = null;
         }
 
-        async function importFromPaulina() {
-            const weekNumber = document.getElementById('weekNumberInput').value;
-            const jsonInput = document.getElementById('importJsonInput').value.trim();
+        function switchImportTab(tabName) {
+            // Actualizar tabs
+            document.querySelectorAll('.import-tab').forEach(t => t.classList.remove('active'));
+            event.currentTarget.classList.add('active');
 
-            if (!weekNumber && !jsonInput) {
-                showToast('Ingresá un número de semana o pegá el JSON', 'warning');
+            // Actualizar contenido
+            document.querySelectorAll('.import-content').forEach(c => c.classList.remove('active'));
+            document.getElementById('tab' + tabName.charAt(0).toUpperCase() + tabName.slice(1)).classList.add('active');
+
+            // Ocultar preview al cambiar de tab
+            document.getElementById('importPreview').style.display = 'none';
+        }
+
+        async function loadAvailableWeeks() {
+            const container = document.getElementById('availableWeeksList');
+            container.innerHTML = '<div class="loading">Cargando semanas...</div>';
+
+            if (!firebaseReady || !db) {
+                container.innerHTML = '<div class="no-weeks">Firebase no disponible</div>';
                 return;
             }
 
-            let data;
+            try {
+                const snapshot = await db.collection('paulina_menus').orderBy('semana', 'desc').get();
 
-            if (jsonInput) {
-                // Parsear JSON pegado
-                try {
-                    data = JSON.parse(jsonInput);
-                } catch (e) {
-                    showToast('JSON inválido', 'error');
+                if (snapshot.empty) {
+                    container.innerHTML = `
+                        <div class="no-weeks">
+                            No hay semanas disponibles
+                            <button class="modal-btn primary" onclick="switchImportTab('scrapear')">🔄 Scrapear una</button>
+                        </div>`;
                     return;
                 }
-            } else if (weekNumber) {
-                // Buscar en Firestore si ya existe data scrapeada
-                showToast('Buscando semana ' + weekNumber + '...', 'success');
 
-                try {
-                    // Primero intentar cargar desde Firestore (si el scraper lo subió)
-                    if (firebaseReady && db) {
-                        const doc = await db.collection('paulina_menus').doc('semana_' + weekNumber).get();
-                        if (doc.exists) {
-                            data = doc.data();
-                        }
-                    }
+                let html = '';
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    const totalItems = countItems(data);
+                    html += `
+                        <div class="week-option" onclick="previewWeek('${doc.id}')">
+                            <div class="week-info">
+                                <div class="week-name">${data.titulo || 'Semana ' + data.semana}</div>
+                                <div class="week-dates">${data.fechas || ''}</div>
+                            </div>
+                            <div class="week-count">${totalItems} items</div>
+                        </div>
+                    `;
+                });
 
-                    // Si no existe, intentar scrapear en tiempo real (esto solo funciona si hay un proxy/backend)
-                    if (!data) {
-                        showToast('Semana ' + weekNumber + ' no encontrada. Ejecutá el scraper primero.', 'warning');
-                        return;
-                    }
-                } catch (error) {
-                    console.error('Error buscando semana:', error);
-                    showToast('Error al buscar la semana', 'error');
+                container.innerHTML = html;
+            } catch (error) {
+                console.error('Error cargando semanas:', error);
+                container.innerHTML = '<div class="no-weeks">Error al cargar</div>';
+            }
+        }
+
+        function countItems(data) {
+            let count = 0;
+            if (data.general) {
+                for (const items of Object.values(data.general)) {
+                    count += items.length;
+                }
+            }
+            return count;
+        }
+
+        async function previewWeek(docId) {
+            try {
+                const doc = await db.collection('paulina_menus').doc(docId).get();
+                if (doc.exists) {
+                    showPreviewForData(doc.data());
+                }
+            } catch (error) {
+                showToast('Error al cargar preview', 'error');
+            }
+        }
+
+        function showPreviewForData(data) {
+            pendingImportData = data;
+
+            const previewDiv = document.getElementById('importPreview');
+            const headerDiv = document.getElementById('previewHeader');
+            const categoriesDiv = document.getElementById('previewCategories');
+
+            // Header
+            headerDiv.innerHTML = `
+                <div class="title">${data.titulo || 'Semana ' + data.semana}</div>
+                <div class="dates">${data.fechas || ''}</div>
+            `;
+
+            // Categories
+            let catHtml = '';
+            if (data.general) {
+                for (const [catName, items] of Object.entries(data.general)) {
+                    const displayItems = items.slice(0, 5).join(', ');
+                    const more = items.length > 5 ? ` +${items.length - 5} más` : '';
+                    catHtml += `
+                        <div class="preview-category">
+                            <div class="cat-name">${catName} (${items.length})</div>
+                            <div class="cat-items">${displayItems}${more}</div>
+                        </div>
+                    `;
+                }
+            }
+            categoriesDiv.innerHTML = catHtml;
+
+            previewDiv.style.display = 'block';
+        }
+
+        function cancelPreview() {
+            document.getElementById('importPreview').style.display = 'none';
+            pendingImportData = null;
+        }
+
+        async function confirmImport() {
+            if (!pendingImportData) {
+                showToast('No hay datos para importar', 'error');
+                return;
+            }
+
+            await doImport(pendingImportData);
+        }
+
+        function importFromJson() {
+            const jsonInput = document.getElementById('importJsonInput').value.trim();
+            if (!jsonInput) {
+                showToast('Pegá el JSON primero', 'warning');
+                return;
+            }
+
+            try {
+                const data = JSON.parse(jsonInput);
+                showPreviewForData(data);
+            } catch (e) {
+                showToast('JSON inválido', 'error');
+            }
+        }
+
+        async function scrapeFromWeb() {
+            const weekNumber = document.getElementById('scrapeWeekNumber').value;
+            if (!weekNumber) {
+                showToast('Ingresá el número de semana', 'warning');
+                return;
+            }
+
+            const statusDiv = document.getElementById('scraperStatus');
+            statusDiv.className = 'scraper-status loading';
+            statusDiv.textContent = '🔄 Scrapeando semana ' + weekNumber + '...';
+
+            try {
+                // Usar un proxy CORS para poder hacer fetch desde el navegador
+                const proxyUrl = 'https://api.allorigins.win/raw?url=';
+                const targetUrl = `https://almacen.paulinacocina.net/menu-semana-${weekNumber}`;
+
+                const response = await fetch(proxyUrl + encodeURIComponent(targetUrl));
+
+                if (!response.ok) {
+                    throw new Error('No se pudo acceder a la página');
+                }
+
+                const html = await response.text();
+                const data = parseHtmlToData(html, weekNumber);
+
+                if (!data || !data.general || Object.keys(data.general).length === 0) {
+                    statusDiv.className = 'scraper-status error';
+                    statusDiv.textContent = '❌ No se encontraron items. La semana puede no existir.';
                     return;
+                }
+
+                statusDiv.className = 'scraper-status success';
+                statusDiv.textContent = '✅ Scrapeado! ' + countItems(data) + ' items encontrados';
+
+                // Mostrar preview
+                showPreviewForData(data);
+
+                // Opcionalmente guardar en Firebase para futuro uso
+                if (firebaseReady && db) {
+                    await db.collection('paulina_menus').doc('semana_' + weekNumber).set({
+                        ...data,
+                        uploadedAt: new Date().toISOString()
+                    });
+                }
+
+            } catch (error) {
+                console.error('Error scrapeando:', error);
+                statusDiv.className = 'scraper-status error';
+                statusDiv.textContent = '❌ Error: ' + error.message;
+            }
+        }
+
+        function parseHtmlToData(html, weekNumber) {
+            // Crear un DOM parser
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+
+            // Extraer título
+            const titleTag = doc.querySelector('title');
+            const titulo = titleTag ? titleTag.textContent.split(' - ')[0].trim() : 'Semana ' + weekNumber;
+
+            // Extraer fechas
+            let fechas = '';
+            for (const heading of doc.querySelectorAll('h1, h2, h3')) {
+                const texto = heading.textContent;
+                const match = texto.match(/(\d{1,2})\s*(?:al|a)\s*(\d{1,2})\s*(?:de\s+)?(\w+)/i);
+                if (match) {
+                    fechas = `${match[1]} al ${match[2]} de ${match[3].toLowerCase()}`;
+                    break;
                 }
             }
 
+            // Extraer items
+            const categorias = {
+                'Supermercado 🏪': [],
+                'Carnes 🥩': [],
+                'Dietética 🥗': [],
+                'Verdulería 🥬': [],
+                'Yapa ⭐': [],
+                'Comodín 👑': []
+            };
+
+            const categoriasMap = {
+                'supermercado': 'Supermercado 🏪',
+                'carne': 'Carnes 🥩',
+                'dietética': 'Dietética 🥗',
+                'dietetica': 'Dietética 🥗',
+                'verdulería': 'Verdulería 🥬',
+                'verduleria': 'Verdulería 🥬',
+                'yapa': 'Yapa ⭐',
+                'comodín': 'Comodín 👑',
+                'comodin': 'Comodín 👑'
+            };
+
+            let categoriaActual = 'Supermercado 🏪';
+            const itemsVistos = new Set();
+
+            // Buscar labels (checkboxes con items)
+            const labels = doc.querySelectorAll('label');
+            for (const label of labels) {
+                let texto = label.textContent.trim();
+                texto = texto.replace(/^[\[\]✓\s]+/, '').trim();
+
+                if (!texto || texto.length < 2) continue;
+
+                // Verificar si es nombre de categoría
+                const textoLower = texto.toLowerCase();
+                let esCategoria = false;
+                for (const [keyword, catName] of Object.entries(categoriasMap)) {
+                    if (textoLower.includes(keyword) && texto.length < 30) {
+                        categoriaActual = catName;
+                        esCategoria = true;
+                        break;
+                    }
+                }
+
+                if (esCategoria) continue;
+
+                // Agregar item si no es duplicado
+                const textoNorm = texto.toLowerCase();
+                if (!itemsVistos.has(textoNorm)) {
+                    itemsVistos.add(textoNorm);
+                    if (categorias[categoriaActual]) {
+                        categorias[categoriaActual].push(texto);
+                    }
+                }
+            }
+
+            // Limpiar categorías vacías
+            const general = {};
+            for (const [cat, items] of Object.entries(categorias)) {
+                if (items.length > 0) {
+                    general[cat] = items;
+                }
+            }
+
+            return {
+                titulo,
+                fechas,
+                semana: parseInt(weekNumber),
+                general,
+                veggie: general, // Por ahora mismo contenido
+                generado: new Date().toISOString()
+            };
+        }
+
+        async function doImport(data) {
             if (!data || (!data.general && !data.veggie)) {
                 showToast('Datos inválidos', 'error');
                 return;
             }
 
             // Crear nueva semana con los datos importados
-            const weekName = data.titulo || `Semana ${weekNumber || 'Importada'}`;
+            const weekName = data.titulo || `Semana ${data.semana || 'Importada'}`;
             const weekId = 'week_' + Date.now();
 
             let counter = 0;
@@ -2315,7 +2823,7 @@
                 currentList: 'general',
                 source: 'paulina',
                 sourceData: {
-                    semana: data.semana || weekNumber,
+                    semana: data.semana,
                     fechas: data.fechas || ''
                 }
             };
