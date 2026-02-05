@@ -1057,16 +1057,47 @@
 
     <!-- Modal Importar desde Paulina -->
     <div class="modal-overlay" id="importModal">
-        <div class="modal">
+        <div class="modal" style="max-width: 400px;">
             <h3>📥 Importar de Paulina Cocina</h3>
-            <p style="font-size: 0.85rem; color: var(--text-light); margin-bottom: 12px;">
-                Pegá el JSON generado por el scraper o ingresá el número de semana
-            </p>
-            <input type="number" id="weekNumberInput" placeholder="Número de semana (ej: 5)" min="1" max="52" style="margin-bottom: 8px;">
-            <textarea id="importJsonInput" placeholder="O pegá el JSON aquí..." style="width: 100%; height: 100px; padding: 12px; border: 2px solid var(--border); border-radius: 10px; font-size: 0.9rem; resize: none; margin-bottom: 12px;"></textarea>
-            <div class="modal-btns">
-                <button class="modal-btn secondary" onclick="closeImportModal()">Cancelar</button>
-                <button class="modal-btn primary" onclick="importFromPaulina()">Importar</button>
+
+            <!-- Paso 1: Seleccionar fuente -->
+            <div id="importStep1">
+                <p style="font-size: 0.85rem; color: var(--text-light); margin-bottom: 12px;">
+                    Ingresá el número de semana o pegá el JSON del scraper
+                </p>
+                <input type="number" id="weekNumberInput" placeholder="Número de semana (ej: 5)" min="1" max="52" style="margin-bottom: 8px;">
+                <textarea id="importJsonInput" placeholder="O pegá el JSON aquí..." style="width: 100%; height: 80px; padding: 12px; border: 2px solid var(--border); border-radius: 10px; font-size: 0.9rem; resize: none; margin-bottom: 12px;"></textarea>
+                <div class="modal-btns">
+                    <button class="modal-btn secondary" onclick="closeImportModal()">Cancelar</button>
+                    <button class="modal-btn primary" onclick="loadPaulinaMenu()">Cargar</button>
+                </div>
+            </div>
+
+            <!-- Paso 2: Seleccionar platos/días -->
+            <div id="importStep2" style="display: none;">
+                <div id="menuPreview" style="margin-bottom: 12px;">
+                    <div style="font-weight: 600; margin-bottom: 8px;" id="menuTitle">Menú cargado</div>
+                    <div style="font-size: 0.8rem; color: var(--text-light);" id="menuDates"></div>
+                </div>
+
+                <!-- Info del tipo de menú -->
+                <div id="menuTypeInfo" style="background: var(--bg-secondary); padding: 10px; border-radius: 8px; margin-bottom: 12px; font-size: 0.85rem;">
+                </div>
+
+                <!-- Lista de platos/días seleccionables -->
+                <div id="platosContainer" style="max-height: 200px; overflow-y: auto; margin-bottom: 12px;">
+                </div>
+
+                <!-- Botones de selección rápida -->
+                <div id="quickSelectBtns" style="display: flex; gap: 8px; margin-bottom: 12px;">
+                    <button class="modal-btn secondary" style="flex: 1; padding: 6px;" onclick="selectAllPlatos()">Todos</button>
+                    <button class="modal-btn secondary" style="flex: 1; padding: 6px;" onclick="selectNonePlatos()">Ninguno</button>
+                </div>
+
+                <div class="modal-btns">
+                    <button class="modal-btn secondary" onclick="backToStep1()">← Atrás</button>
+                    <button class="modal-btn primary" onclick="importSelectedPlatos()">Importar seleccionados</button>
+                </div>
             </div>
         </div>
     </div>
@@ -2502,18 +2533,30 @@
         }
 
         // ==================== IMPORT FROM PAULINA ====================
+        let pendingPaulinaData = null;  // Datos del menú cargado pendiente de importar
+
         function openImportModal() {
             document.getElementById('importModal').classList.add('active');
             document.getElementById('weekNumberInput').value = '';
             document.getElementById('importJsonInput').value = '';
+            document.getElementById('importStep1').style.display = 'block';
+            document.getElementById('importStep2').style.display = 'none';
+            pendingPaulinaData = null;
             document.getElementById('weekNumberInput').focus();
         }
 
         function closeImportModal() {
             document.getElementById('importModal').classList.remove('active');
+            pendingPaulinaData = null;
         }
 
-        async function importFromPaulina() {
+        function backToStep1() {
+            document.getElementById('importStep1').style.display = 'block';
+            document.getElementById('importStep2').style.display = 'none';
+        }
+
+        // Paso 1: Cargar el menú y mostrar opciones de selección
+        async function loadPaulinaMenu() {
             const weekNumber = document.getElementById('weekNumberInput').value;
             const jsonInput = document.getElementById('importJsonInput').value.trim();
 
@@ -2525,7 +2568,6 @@
             let data;
 
             if (jsonInput) {
-                // Parsear JSON pegado
                 try {
                     data = JSON.parse(jsonInput);
                 } catch (e) {
@@ -2533,11 +2575,9 @@
                     return;
                 }
             } else if (weekNumber) {
-                // Buscar en Firestore si ya existe data scrapeada
                 showToast('Buscando semana ' + weekNumber + '...', 'success');
 
                 try {
-                    // Primero intentar cargar desde Firestore (si el scraper lo subió)
                     if (firebaseReady && db) {
                         const doc = await db.collection('paulina_menus').doc('semana_' + weekNumber).get();
                         if (doc.exists) {
@@ -2545,7 +2585,6 @@
                         }
                     }
 
-                    // Si no existe, intentar scrapear en tiempo real (esto solo funciona si hay un proxy/backend)
                     if (!data) {
                         showToast('Semana ' + weekNumber + ' no encontrada. Ejecutá el scraper primero.', 'warning');
                         return;
@@ -2557,12 +2596,190 @@
                 }
             }
 
-            if (!data || (!data.general && !data.veggie)) {
+            if (!data) {
                 showToast('Datos inválidos', 'error');
                 return;
             }
 
-            // Crear nueva semana con los datos importados
+            pendingPaulinaData = data;
+            showStep2(data);
+        }
+
+        // Mostrar paso 2 con opciones de selección
+        function showStep2(data) {
+            document.getElementById('importStep1').style.display = 'none';
+            document.getElementById('importStep2').style.display = 'block';
+
+            // Mostrar título y fechas
+            document.getElementById('menuTitle').textContent = data.titulo || 'Menú';
+            document.getElementById('menuDates').textContent = data.fechas ? `📅 ${data.fechas}` : '';
+
+            const platosContainer = document.getElementById('platosContainer');
+            const menuTypeInfo = document.getElementById('menuTypeInfo');
+            const quickSelectBtns = document.getElementById('quickSelectBtns');
+
+            platosContainer.innerHTML = '';
+
+            // Determinar si tiene platos individuales o lista general
+            const tienePlatos = data.platos && data.platos.length > 0;
+            const tieneListaGeneral = data.general && Object.keys(data.general).length > 0;
+
+            if (tienePlatos) {
+                // Menú con platos individuales
+                menuTypeInfo.innerHTML = `
+                    <div style="color: var(--primary);">🍽️ Menú con ${data.platos.length} platos</div>
+                    <div style="margin-top: 4px;">Seleccioná los platos que querés incluir en tu lista de compras:</div>
+                `;
+                quickSelectBtns.style.display = 'flex';
+
+                data.platos.forEach((plato, index) => {
+                    const ingredientCount = plato.ingredientes ? plato.ingredientes.length : 0;
+                    const platoDiv = document.createElement('div');
+                    platoDiv.style.cssText = 'display: flex; align-items: center; padding: 8px; border-bottom: 1px solid var(--border); gap: 10px;';
+                    platoDiv.innerHTML = `
+                        <input type="checkbox" id="plato_${index}" checked style="width: 18px; height: 18px; cursor: pointer;">
+                        <label for="plato_${index}" style="flex: 1; cursor: pointer;">
+                            <div style="font-weight: 500;">${index + 1}. ${plato.nombre || 'Plato ' + (index + 1)}</div>
+                            <div style="font-size: 0.75rem; color: var(--text-light);">${ingredientCount} ingredientes</div>
+                        </label>
+                    `;
+                    platosContainer.appendChild(platoDiv);
+                });
+            } else if (tieneListaGeneral) {
+                // Menú con lista general - mostrar días si están disponibles
+                const totalItems = Object.values(data.general).reduce((sum, items) => sum + items.length, 0);
+
+                // Intentar detectar si hay recetas por día
+                if (data.recetas && Object.keys(data.recetas).length > 0) {
+                    menuTypeInfo.innerHTML = `
+                        <div style="color: var(--primary);">📅 Menú semanal con ${Object.keys(data.recetas).length} días</div>
+                        <div style="margin-top: 4px;">Seleccioná los días que querés incluir:</div>
+                    `;
+                    quickSelectBtns.style.display = 'flex';
+
+                    Object.entries(data.recetas).forEach(([dia, receta], index) => {
+                        const ingredientCount = receta.ingredientes ? receta.ingredientes.length : 0;
+                        const diaDiv = document.createElement('div');
+                        diaDiv.style.cssText = 'display: flex; align-items: center; padding: 8px; border-bottom: 1px solid var(--border); gap: 10px;';
+                        diaDiv.innerHTML = `
+                            <input type="checkbox" id="dia_${index}" data-dia="${dia}" checked style="width: 18px; height: 18px; cursor: pointer;">
+                            <label for="dia_${index}" style="flex: 1; cursor: pointer;">
+                                <div style="font-weight: 500;">${dia}</div>
+                                <div style="font-size: 0.75rem; color: var(--text-light);">${receta.nombre || ''} (${ingredientCount} ing.)</div>
+                            </label>
+                        `;
+                        platosContainer.appendChild(diaDiv);
+                    });
+                } else {
+                    // Solo lista general sin días
+                    menuTypeInfo.innerHTML = `
+                        <div style="color: var(--primary);">📋 Lista de compras completa</div>
+                        <div style="margin-top: 4px;">${totalItems} productos en ${Object.keys(data.general).length} categorías</div>
+                    `;
+                    quickSelectBtns.style.display = 'none';
+
+                    // Mostrar resumen de categorías
+                    Object.entries(data.general).forEach(([categoria, items]) => {
+                        const catDiv = document.createElement('div');
+                        catDiv.style.cssText = 'display: flex; justify-content: space-between; padding: 6px 8px; border-bottom: 1px solid var(--border);';
+                        catDiv.innerHTML = `
+                            <span>${mapCategoryName(categoria)}</span>
+                            <span style="color: var(--text-light);">${items.length} items</span>
+                        `;
+                        platosContainer.appendChild(catDiv);
+                    });
+                }
+            } else {
+                menuTypeInfo.innerHTML = `<div style="color: var(--danger);">⚠️ No se encontraron datos válidos</div>`;
+                quickSelectBtns.style.display = 'none';
+            }
+        }
+
+        function selectAllPlatos() {
+            document.querySelectorAll('#platosContainer input[type="checkbox"]').forEach(cb => cb.checked = true);
+        }
+
+        function selectNonePlatos() {
+            document.querySelectorAll('#platosContainer input[type="checkbox"]').forEach(cb => cb.checked = false);
+        }
+
+        // Paso 2: Importar los platos/días seleccionados
+        async function importSelectedPlatos() {
+            if (!pendingPaulinaData) {
+                showToast('No hay datos cargados', 'error');
+                return;
+            }
+
+            const data = pendingPaulinaData;
+            const tienePlatos = data.platos && data.platos.length > 0;
+            const tieneRecetas = data.recetas && Object.keys(data.recetas).length > 0;
+
+            let itemsToImport = { general: {}, veggie: {} };
+
+            if (tienePlatos) {
+                // Combinar ingredientes de platos seleccionados
+                const selectedIndices = [];
+                document.querySelectorAll('#platosContainer input[type="checkbox"]:checked').forEach(cb => {
+                    const index = parseInt(cb.id.replace('plato_', ''));
+                    selectedIndices.push(index);
+                });
+
+                if (selectedIndices.length === 0) {
+                    showToast('Seleccioná al menos un plato', 'warning');
+                    return;
+                }
+
+                // Combinar ingredientes de platos seleccionados
+                const combinedIngredients = [];
+                selectedIndices.forEach(index => {
+                    const plato = data.platos[index];
+                    if (plato && plato.ingredientes) {
+                        combinedIngredients.push(...plato.ingredientes);
+                    }
+                });
+
+                // Agrupar por categoría (todos van a Supermercado por defecto)
+                itemsToImport.general = { 'Supermercado 🏪': combinedIngredients };
+                itemsToImport.veggie = { 'Supermercado 🏪': combinedIngredients };
+
+            } else if (tieneRecetas) {
+                // Combinar ingredientes de días seleccionados
+                const selectedDias = [];
+                document.querySelectorAll('#platosContainer input[type="checkbox"]:checked').forEach(cb => {
+                    const dia = cb.dataset.dia;
+                    if (dia) selectedDias.push(dia);
+                });
+
+                if (selectedDias.length === 0) {
+                    showToast('Seleccioná al menos un día', 'warning');
+                    return;
+                }
+
+                // Combinar ingredientes de días seleccionados
+                const combinedIngredients = [];
+                selectedDias.forEach(dia => {
+                    const receta = data.recetas[dia];
+                    if (receta && receta.ingredientes) {
+                        combinedIngredients.push(...receta.ingredientes);
+                    }
+                });
+
+                itemsToImport.general = { 'Supermercado 🏪': combinedIngredients };
+                itemsToImport.veggie = { 'Supermercado 🏪': combinedIngredients };
+
+            } else if (data.general) {
+                // Usar lista general completa
+                itemsToImport.general = data.general;
+                itemsToImport.veggie = data.veggie || data.general;
+            }
+
+            // Crear la semana con los items seleccionados
+            await createWeekFromImport(data, itemsToImport);
+        }
+
+        // Crear semana desde datos importados (refactorizado)
+        async function createWeekFromImport(data, itemsToImport) {
+            const weekNumber = document.getElementById('weekNumberInput').value;
             const weekName = data.titulo || `Semana ${weekNumber || 'Importada'}`;
             const weekId = 'week_' + Date.now();
 
@@ -2570,11 +2787,10 @@
             const newItems = {};
             const seenItems = { general: new Set(), veggie: new Set() };
 
-            // Función para agregar item sin duplicados
             function addItemIfNotDuplicate(product, categoryName, listType) {
                 const normalized = normalizeText(product);
                 if (seenItems[listType].has(normalized)) {
-                    return false; // Duplicado, no agregar
+                    return false;
                 }
                 seenItems[listType].add(normalized);
                 newItems[counter++] = {
@@ -2590,8 +2806,8 @@
             }
 
             // Procesar lista general
-            if (data.general) {
-                for (const [category, products] of Object.entries(data.general)) {
+            if (itemsToImport.general) {
+                for (const [category, products] of Object.entries(itemsToImport.general)) {
                     const categoryName = mapCategoryName(category);
                     for (const product of products) {
                         addItemIfNotDuplicate(product, categoryName, 'general');
@@ -2600,8 +2816,8 @@
             }
 
             // Procesar lista veggie
-            if (data.veggie) {
-                for (const [category, products] of Object.entries(data.veggie)) {
+            if (itemsToImport.veggie) {
+                for (const [category, products] of Object.entries(itemsToImport.veggie)) {
                     const categoryName = mapCategoryName(category);
                     for (const product of products) {
                         addItemIfNotDuplicate(product, categoryName, 'veggie');
@@ -2631,6 +2847,11 @@
 
             const totalItems = Object.keys(newItems).length;
             showToast(`Importados ${totalItems} productos`, 'success');
+        }
+
+        // Mantener compatibilidad con importación directa (legacy)
+        async function importFromPaulina() {
+            await loadPaulinaMenu();
         }
 
         function mapCategoryName(category) {
