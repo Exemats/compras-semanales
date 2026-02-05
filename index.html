@@ -107,18 +107,27 @@
             display: flex;
             align-items: center;
             gap: 5px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .sync-status:active {
+            transform: scale(0.95);
         }
 
         .sync-status.synced {
             color: #4ade80;
+            background: rgba(74, 222, 128, 0.15);
         }
 
         .sync-status.syncing {
             color: #fbbf24;
+            background: rgba(251, 191, 36, 0.15);
         }
 
         .sync-status.error {
             color: #f87171;
+            background: rgba(248, 113, 113, 0.15);
         }
 
         @keyframes spin {
@@ -620,11 +629,90 @@
             font-size: 1.1rem;
             padding: 4px 8px;
             cursor: pointer;
-            opacity: 0.5;
+            opacity: 0.6;
+            transition: opacity 0.2s;
+        }
+
+        .delete-btn:hover {
+            opacity: 1;
         }
 
         .delete-btn:active {
             opacity: 1;
+            transform: scale(0.95);
+        }
+
+        /* Confirm delete modal */
+        .confirm-modal {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            padding: 20px;
+            border-radius: 20px 20px 0 0;
+            box-shadow: 0 -5px 30px rgba(0,0,0,0.2);
+            transform: translateY(100%);
+            transition: transform 0.3s ease;
+            z-index: 250;
+        }
+
+        .confirm-modal.active {
+            transform: translateY(0);
+        }
+
+        .confirm-modal-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s;
+            z-index: 240;
+        }
+
+        .confirm-modal-backdrop.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .confirm-modal h4 {
+            margin-bottom: 8px;
+            font-size: 1rem;
+        }
+
+        .confirm-modal p {
+            color: var(--text-light);
+            font-size: 0.9rem;
+            margin-bottom: 16px;
+        }
+
+        .confirm-modal-btns {
+            display: flex;
+            gap: 10px;
+        }
+
+        .confirm-modal-btns button {
+            flex: 1;
+            padding: 14px;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .confirm-modal-btns .cancel-btn {
+            background: #f0f0f0;
+            color: var(--text);
+        }
+
+        .confirm-modal-btns .delete-confirm-btn {
+            background: #ef4444;
+            color: white;
         }
 
         /* ==================== BOTTOM ACTIONS ==================== */
@@ -889,7 +977,8 @@
         </select>
         <button class="week-btn" onclick="openNewWeekModal()" title="Nueva semana">➕</button>
         <button class="week-btn danger" onclick="deleteCurrentWeek()" title="Eliminar semana">🗑️</button>
-        <div class="sync-status" id="syncStatus">
+        <button class="week-btn" onclick="forceSync()" title="Sincronizar" id="syncBtn">🔄</button>
+        <div class="sync-status" id="syncStatus" onclick="forceSync()">
             <span>☁️</span> <span id="syncText">Local</span>
         </div>
     </div>
@@ -984,6 +1073,17 @@
 
     <!-- Toast -->
     <div class="toast" id="toast"></div>
+
+    <!-- Confirm Delete Modal -->
+    <div class="confirm-modal-backdrop" id="confirmBackdrop" onclick="closeConfirmModal()"></div>
+    <div class="confirm-modal" id="confirmModal">
+        <h4 id="confirmTitle">Eliminar item</h4>
+        <p id="confirmMessage">Este item se eliminará de la lista.</p>
+        <div class="confirm-modal-btns">
+            <button class="cancel-btn" onclick="closeConfirmModal()">Cancelar</button>
+            <button class="delete-confirm-btn" id="confirmDeleteBtn">Eliminar</button>
+        </div>
+    </div>
 
     <script>
         // Firebase configuration
@@ -1450,11 +1550,11 @@
         function processInput() {
             const input = document.getElementById('registerInput');
             const text = input.value.trim();
-            
+
             if (!text) return;
 
             const parsed = parseInput(text);
-            
+
             if (parsed.length === 0) {
                 showToast('Agregá el precio. Ej: leche 2500', 'warning');
                 return;
@@ -1470,9 +1570,10 @@
                     items[id].bought = true;
                     items[id].price = item.price;
                     items[id].boughtBy = currentUser?.displayName || currentUser?.email || 'Anónimo';
+                    items[id].itemUpdatedAt = Date.now();
                     totalAdded += item.price;
                     itemsProcessed.push(items[id].name);
-                    
+
                     // Highlight animation
                     setTimeout(() => {
                         const el = document.querySelector(`[data-id="${id}"]`);
@@ -1482,29 +1583,47 @@
                         }
                     }, 100);
                 } else {
-                    // Add as extra
-                    const newId = itemIdCounter++;
-                    items[newId] = {
-                        name: item.searchText.charAt(0).toUpperCase() + item.searchText.slice(1),
-                        category: 'Extras ➕',
-                        bought: true,
-                        price: item.price,
-                        isExtra: true,
-                        listType: currentList,
-                        boughtBy: currentUser?.displayName || currentUser?.email || 'Anónimo'
-                    };
-                    totalAdded += item.price;
-                    itemsProcessed.push(items[newId].name + ' (extra)');
+                    // Verificar si ya existe un extra con el mismo nombre
+                    const normalizedName = normalizeText(item.searchText);
+                    const existingExtra = Object.entries(items).find(([id, i]) =>
+                        i.listType === currentList && i.isExtra && normalizeText(i.name) === normalizedName
+                    );
+
+                    if (existingExtra) {
+                        // Actualizar el extra existente
+                        const [existingId, existingItem] = existingExtra;
+                        existingItem.bought = true;
+                        existingItem.price = (existingItem.price || 0) + item.price;
+                        existingItem.boughtBy = currentUser?.displayName || currentUser?.email || 'Anónimo';
+                        existingItem.itemUpdatedAt = Date.now();
+                        totalAdded += item.price;
+                        itemsProcessed.push(existingItem.name + ' (actualizado)');
+                    } else {
+                        // Add as new extra
+                        const newId = itemIdCounter++;
+                        items[newId] = {
+                            name: item.searchText.charAt(0).toUpperCase() + item.searchText.slice(1),
+                            category: 'Extras ➕',
+                            bought: true,
+                            price: item.price,
+                            isExtra: true,
+                            listType: currentList,
+                            boughtBy: currentUser?.displayName || currentUser?.email || 'Anónimo',
+                            itemUpdatedAt: Date.now()
+                        };
+                        totalAdded += item.price;
+                        itemsProcessed.push(items[newId].name + ' (extra)');
+                    }
                 }
             }
 
             input.value = '';
             document.getElementById('matchPreview').classList.remove('active');
-            
+
             renderList();
             updateTotals();
             saveData();
-            
+
             showToast(`✓ +$${totalAdded.toLocaleString('es-AR')}`, 'success');
         }
 
@@ -1577,7 +1696,7 @@
                                         ${item.boughtBy ? `<span class="bought-by">${item.boughtBy.split(' ')[0]}</span>` : ''}
                                     </div>
                                     ${item.bought ? `<span class="item-price" onclick="editPrice(${item.id}, event)">$${(item.price || 0).toLocaleString('es-AR')}</span>` : ''}
-                                    ${item.isExtra ? `<button class="delete-btn" onclick="deleteItem(${item.id}, event)">×</button>` : ''}
+                                    <button class="delete-btn" onclick="confirmDeleteItem(${item.id}, event)" title="Eliminar">×</button>
                                 </div>
                             `).join('')}
                         </div>
@@ -1677,10 +1796,29 @@
         function addExtra() {
             const name = prompt('Nombre del producto extra:');
             if (!name) return;
-            
+
+            // Verificar duplicados
+            const normalizedName = normalizeText(name);
+            const existingItem = Object.entries(items).find(([id, item]) =>
+                item.listType === currentList && normalizeText(item.name) === normalizedName
+            );
+
+            if (existingItem) {
+                showToast(`"${existingItem[1].name}" ya está en la lista`, 'warning');
+                // Scroll al item existente
+                setTimeout(() => {
+                    const el = document.querySelector(`[data-id="${existingItem[0]}"]`);
+                    if (el) {
+                        el.classList.add('highlight');
+                        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                }, 100);
+                return;
+            }
+
             const priceStr = prompt('Precio (o dejá vacío):');
             const price = parseInt(priceStr) || 0;
-            
+
             const newId = itemIdCounter++;
             items[newId] = {
                 name: name.charAt(0).toUpperCase() + name.slice(1),
@@ -1689,9 +1827,10 @@
                 price: price,
                 isExtra: true,
                 listType: currentList,
-                boughtBy: price > 0 ? (currentUser?.displayName || currentUser?.email || 'Anónimo') : null
+                boughtBy: price > 0 ? (currentUser?.displayName || currentUser?.email || 'Anónimo') : null,
+                itemUpdatedAt: Date.now()
             };
-            
+
             renderList();
             updateTotals();
             saveData();
@@ -1708,6 +1847,7 @@
                 item.bought = false;
                 item.price = 0;
                 item.boughtBy = null;
+                item.itemUpdatedAt = Date.now();
                 showToast('Item desmarcado', 'info');
             } else {
                 // Marcar como comprado - pedir precio
@@ -1717,6 +1857,7 @@
                 item.bought = true;
                 item.price = price;
                 item.boughtBy = currentUser?.displayName || currentUser?.email || 'Anónimo';
+                item.itemUpdatedAt = Date.now();
                 showToast('Item marcado', 'success');
             }
 
@@ -1735,17 +1876,51 @@
             if (newPrice === null) return; // Canceló
 
             item.price = parseInt(newPrice) || 0;
+            item.itemUpdatedAt = Date.now();
             renderList();
             updateTotals();
             saveData();
             showToast('Precio actualizado', 'success');
         }
 
+        let pendingDeleteId = null;
+
+        function confirmDeleteItem(id, event) {
+            if (event) event.stopPropagation();
+            const strId = String(id);
+            if (!items[strId]) return;
+
+            const item = items[strId];
+            pendingDeleteId = strId;
+
+            document.getElementById('confirmTitle').textContent = 'Eliminar item';
+            document.getElementById('confirmMessage').textContent = `¿Eliminar "${item.name}" de la lista?`;
+            document.getElementById('confirmBackdrop').classList.add('active');
+            document.getElementById('confirmModal').classList.add('active');
+            document.getElementById('confirmDeleteBtn').onclick = executeDeleteItem;
+        }
+
+        function closeConfirmModal() {
+            document.getElementById('confirmBackdrop').classList.remove('active');
+            document.getElementById('confirmModal').classList.remove('active');
+            pendingDeleteId = null;
+        }
+
+        function executeDeleteItem() {
+            if (!pendingDeleteId) return;
+
+            delete items[pendingDeleteId];
+            closeConfirmModal();
+            renderList();
+            updateTotals();
+            saveData();
+            showToast('Item eliminado', 'success');
+        }
+
         function deleteItem(id, event) {
             if (event) event.stopPropagation();
-            // Convertir a string porque las keys de objetos JSON son siempre strings
             const strId = String(id);
-            if (items[strId] && items[strId].isExtra) {
+            if (items[strId]) {
                 delete items[strId];
                 renderList();
                 updateTotals();
@@ -1903,6 +2078,7 @@
 
         let unsubscribeListener = null;
         let lastSaveTime = 0;
+        let localSaveId = null; // ID único para identificar guardados propios
 
         async function syncFromFirestore() {
             if (!firebaseReady || !db) return;
@@ -1913,12 +2089,15 @@
                 const weekData = doc.data();
                 const localWeek = weeks[doc.id];
 
-                // Si no existe localmente o el de la nube es más reciente, usar el de la nube
-                if (!localWeek || (weekData.updatedAt > (localWeek.updatedAt || 0))) {
+                // Si no existe localmente, usar el de la nube
+                if (!localWeek) {
                     weeks[doc.id] = {
                         id: doc.id,
                         ...weekData
                     };
+                } else {
+                    // Merge inteligente a nivel de item
+                    weeks[doc.id] = mergeWeekData(localWeek, weekData, doc.id);
                 }
             });
 
@@ -1926,27 +2105,88 @@
             startRealtimeSync();
         }
 
+        // Merge inteligente: compara items individuales por timestamp
+        function mergeWeekData(localWeek, cloudWeek, weekId) {
+            const merged = {
+                id: weekId,
+                name: cloudWeek.name || localWeek.name,
+                createdAt: cloudWeek.createdAt || localWeek.createdAt,
+                updatedAt: Math.max(cloudWeek.updatedAt || 0, localWeek.updatedAt || 0),
+                currentList: cloudWeek.currentList || localWeek.currentList || 'general',
+                itemIdCounter: Math.max(cloudWeek.itemIdCounter || 0, localWeek.itemIdCounter || 0),
+                source: cloudWeek.source || localWeek.source,
+                sourceData: cloudWeek.sourceData || localWeek.sourceData,
+                items: {}
+            };
+
+            const localItems = localWeek.items || {};
+            const cloudItems = cloudWeek.items || {};
+            const allItemIds = new Set([...Object.keys(localItems), ...Object.keys(cloudItems)]);
+
+            for (const itemId of allItemIds) {
+                const localItem = localItems[itemId];
+                const cloudItem = cloudItems[itemId];
+
+                if (!localItem) {
+                    // Item solo existe en la nube
+                    merged.items[itemId] = cloudItem;
+                } else if (!cloudItem) {
+                    // Item solo existe local - mantener si tiene timestamp reciente o fue eliminado en nube
+                    // Solo mantener si es reciente (últimos 30 segundos)
+                    if (localItem.itemUpdatedAt && Date.now() - localItem.itemUpdatedAt < 30000) {
+                        merged.items[itemId] = localItem;
+                    }
+                    // Si no, fue eliminado en la nube, no lo agregamos
+                } else {
+                    // Existe en ambos - usar el más reciente
+                    const localTs = localItem.itemUpdatedAt || 0;
+                    const cloudTs = cloudItem.itemUpdatedAt || 0;
+                    merged.items[itemId] = localTs > cloudTs ? localItem : cloudItem;
+                }
+            }
+
+            return merged;
+        }
+
         function startRealtimeSync() {
             if (!firebaseReady || !db || unsubscribeListener) return;
 
             unsubscribeListener = db.collection('weeks').onSnapshot(snapshot => {
-                // Ignorar cambios propios (dentro de 2 segundos de guardar)
-                if (Date.now() - lastSaveTime < 2000) return;
+                // Ignorar cambios propios (dentro de 1 segundo de guardar)
+                if (Date.now() - lastSaveTime < 1000) return;
 
                 let hasChanges = false;
+                let updatedCurrentWeek = false;
 
                 snapshot.docChanges().forEach(change => {
+                    // Verificar si es nuestro propio guardado
+                    const weekData = change.doc.data();
+                    if (weekData.lastSaveId === localSaveId && Date.now() - lastSaveTime < 3000) {
+                        return; // Ignorar nuestro propio guardado
+                    }
+
                     if (change.type === 'modified' || change.type === 'added') {
-                        const weekData = change.doc.data();
                         const localWeek = weeks[change.doc.id];
 
-                        // Solo actualizar si el de la nube es más reciente
-                        if (!localWeek || (weekData.updatedAt > (localWeek.updatedAt || 0))) {
+                        if (!localWeek) {
                             weeks[change.doc.id] = {
                                 id: change.doc.id,
                                 ...weekData
                             };
                             hasChanges = true;
+                        } else {
+                            // Merge inteligente
+                            const merged = mergeWeekData(localWeek, weekData, change.doc.id);
+
+                            // Verificar si hay cambios reales
+                            const itemsChanged = JSON.stringify(merged.items) !== JSON.stringify(localWeek.items);
+                            if (itemsChanged) {
+                                weeks[change.doc.id] = merged;
+                                hasChanges = true;
+                                if (change.doc.id === currentWeekId) {
+                                    updatedCurrentWeek = true;
+                                }
+                            }
                         }
                     } else if (change.type === 'removed') {
                         if (weeks[change.doc.id]) {
@@ -1961,12 +2201,12 @@
                     renderWeeksDropdown();
 
                     // Si la semana actual fue modificada, recargar
-                    if (currentWeekId && weeks[currentWeekId]) {
+                    if (updatedCurrentWeek && currentWeekId && weeks[currentWeekId]) {
                         items = weeks[currentWeekId].items || {};
                         itemIdCounter = weeks[currentWeekId].itemIdCounter || 0;
                         renderList();
                         updateTotals();
-                        showToast('Lista actualizada', 'info');
+                        showToast('Lista sincronizada', 'info');
                     }
 
                     updateSyncStatus('synced', 'Sincronizado');
@@ -1984,16 +2224,20 @@
             if (!week) return;
 
             updateSyncStatus('syncing', 'Guardando...');
-            lastSaveTime = Date.now(); // Marcar que estamos guardando
+            lastSaveTime = Date.now();
+            localSaveId = 'save_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
 
             try {
                 await db.collection('weeks').doc(weekId).set({
                     name: week.name,
                     createdAt: week.createdAt,
-                    updatedAt: week.updatedAt || Date.now(),
+                    updatedAt: Date.now(),
                     items: week.items || {},
                     itemIdCounter: week.itemIdCounter || 0,
-                    currentList: week.currentList || 'general'
+                    currentList: week.currentList || 'general',
+                    source: week.source || null,
+                    sourceData: week.sourceData || null,
+                    lastSaveId: localSaveId
                 });
                 updateSyncStatus('synced', 'Guardado');
             } catch (error) {
@@ -2018,6 +2262,49 @@
 
             statusEl.className = 'sync-status ' + status;
             textEl.textContent = text;
+        }
+
+        async function forceSync() {
+            if (!firebaseReady || !db) {
+                showToast('Sin conexión a la nube', 'warning');
+                return;
+            }
+
+            updateSyncStatus('syncing', 'Sincronizando...');
+            const syncBtn = document.getElementById('syncBtn');
+            if (syncBtn) {
+                syncBtn.style.animation = 'spin 1s linear infinite';
+            }
+
+            try {
+                // Primero guardar cambios locales
+                if (currentWeekId) {
+                    await saveWeekToCloud(currentWeekId);
+                }
+
+                // Luego obtener cambios de la nube
+                await syncFromFirestore();
+
+                // Recargar datos de la semana actual
+                if (currentWeekId && weeks[currentWeekId]) {
+                    items = weeks[currentWeekId].items || {};
+                    itemIdCounter = weeks[currentWeekId].itemIdCounter || 0;
+                    renderList();
+                    updateTotals();
+                }
+
+                renderWeeksDropdown();
+                updateSyncStatus('synced', 'Sincronizado');
+                showToast('Lista sincronizada', 'success');
+            } catch (error) {
+                console.error('Error en sincronización:', error);
+                updateSyncStatus('error', 'Error');
+                showToast('Error al sincronizar', 'error');
+            } finally {
+                if (syncBtn) {
+                    syncBtn.style.animation = '';
+                }
+            }
         }
 
         // ==================== WEEKS MANAGEMENT ====================
@@ -2085,7 +2372,18 @@
 
             dropdown.innerHTML = weekIds.map(id => {
                 const week = weeks[id];
-                return `<option value="${id}" ${id === currentWeekId ? 'selected' : ''}>${week.name}</option>`;
+                let displayName = week.name;
+
+                // Agregar fechas si están disponibles
+                if (week.sourceData && week.sourceData.fechas) {
+                    displayName += ` (${week.sourceData.fechas})`;
+                } else if (week.createdAt) {
+                    const date = new Date(week.createdAt);
+                    const dateStr = date.toLocaleDateString('es-AR', { day: 'numeric', month: 'short' });
+                    displayName += ` - ${dateStr}`;
+                }
+
+                return `<option value="${id}" ${id === currentWeekId ? 'selected' : ''}>${displayName}</option>`;
             }).join('');
         }
 
@@ -2270,20 +2568,33 @@
 
             let counter = 0;
             const newItems = {};
+            const seenItems = { general: new Set(), veggie: new Set() };
+
+            // Función para agregar item sin duplicados
+            function addItemIfNotDuplicate(product, categoryName, listType) {
+                const normalized = normalizeText(product);
+                if (seenItems[listType].has(normalized)) {
+                    return false; // Duplicado, no agregar
+                }
+                seenItems[listType].add(normalized);
+                newItems[counter++] = {
+                    name: product,
+                    category: categoryName,
+                    bought: false,
+                    price: 0,
+                    isExtra: false,
+                    listType: listType,
+                    itemUpdatedAt: Date.now()
+                };
+                return true;
+            }
 
             // Procesar lista general
             if (data.general) {
                 for (const [category, products] of Object.entries(data.general)) {
                     const categoryName = mapCategoryName(category);
                     for (const product of products) {
-                        newItems[counter++] = {
-                            name: product,
-                            category: categoryName,
-                            bought: false,
-                            price: 0,
-                            isExtra: false,
-                            listType: 'general'
-                        };
+                        addItemIfNotDuplicate(product, categoryName, 'general');
                     }
                 }
             }
@@ -2293,14 +2604,7 @@
                 for (const [category, products] of Object.entries(data.veggie)) {
                     const categoryName = mapCategoryName(category);
                     for (const product of products) {
-                        newItems[counter++] = {
-                            name: product,
-                            category: categoryName,
-                            bought: false,
-                            price: 0,
-                            isExtra: false,
-                            listType: 'veggie'
-                        };
+                        addItemIfNotDuplicate(product, categoryName, 'veggie');
                     }
                 }
             }
