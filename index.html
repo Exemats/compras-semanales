@@ -998,7 +998,7 @@
         <select id="weekDropdown" class="week-dropdown" onchange="selectWeek(this.value)">
             <option value="">Cargando semanas...</option>
         </select>
-        <button class="week-btn" onclick="openNewWeekModal()" title="Nueva semana">➕</button>
+        <button class="week-btn" onclick="openImportModal()" title="Nueva lista">➕</button>
         <button class="week-btn danger" onclick="deleteCurrentWeek()" title="Eliminar semana">🗑️</button>
         <button class="week-btn" onclick="forceSync()" title="Sincronizar" id="syncBtn">🔄</button>
         <div class="sync-status" id="syncStatus" onclick="forceSync()">
@@ -1006,17 +1006,6 @@
         </div>
     </div>
 
-    <!-- Modal Nueva Semana -->
-    <div class="modal-overlay" id="newWeekModal">
-        <div class="modal">
-            <h3>📅 Nueva Semana</h3>
-            <input type="text" id="weekNameInput" placeholder="Ej: Semana 5 - Febrero" maxlength="40">
-            <div class="modal-btns">
-                <button class="modal-btn secondary" onclick="closeNewWeekModal()">Cancelar</button>
-                <button class="modal-btn primary" onclick="createNewWeek()">Crear</button>
-            </div>
-        </div>
-    </div>
 
     <!-- Quick Register -->
     <div class="quick-register">
@@ -1078,43 +1067,60 @@
         </div>
     </div><!-- End app-content -->
 
-    <!-- Modal Importar desde Paulina -->
+    <!-- Modal Nueva Lista (unificado) -->
     <div class="modal-overlay" id="importModal">
         <div class="modal" style="max-width: 380px;">
             <!-- Paso 1: Seleccionar fuente -->
             <div id="importStep1">
-                <h3 style="margin-bottom: 16px; font-size: 1.2rem;">📥 Nueva lista de compras</h3>
+                <h3 style="margin-bottom: 20px; font-size: 1.2rem;">📝 Nueva lista</h3>
 
-                <div style="margin-bottom: 16px;">
-                    <label style="font-size: 0.9rem; font-weight: 600; display: block; margin-bottom: 8px;">
-                        Semana de Paulina Cocina
-                    </label>
+                <!-- Opción 1: Lista vacía -->
+                <button onclick="createEmptyList()"
+                        style="width: 100%; padding: 16px; margin-bottom: 12px; background: var(--bg); border: 2px solid var(--border); border-radius: 12px; font-size: 1rem; cursor: pointer; display: flex; align-items: center; gap: 12px;">
+                    <span style="font-size: 1.5rem;">📋</span>
+                    <div style="text-align: left;">
+                        <div style="font-weight: 600;">Lista vacía</div>
+                        <div style="font-size: 0.8rem; color: var(--text-light);">Crear lista nueva desde cero</div>
+                    </div>
+                </button>
+
+                <!-- Opción 2: Importar de Paulina -->
+                <div style="background: var(--bg); border: 2px solid var(--border); border-radius: 12px; padding: 16px;">
+                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                        <span style="font-size: 1.5rem;">🍳</span>
+                        <div>
+                            <div style="font-weight: 600;">Importar de Paulina</div>
+                            <div style="font-size: 0.8rem; color: var(--text-light);">Menú semanal de Paulina Cocina</div>
+                        </div>
+                    </div>
+
                     <input type="number"
                            id="weekNumberInput"
                            placeholder="Número de semana (ej: 5)"
                            min="1" max="52"
-                           style="font-size: 1.1rem; padding: 14px; text-align: center;">
-                </div>
+                           style="font-size: 1rem; padding: 12px; text-align: center; margin-bottom: 8px;">
 
-                <div style="text-align: center; color: var(--text-light); font-size: 0.85rem; margin: 16px 0;">
-                    — o —
-                </div>
-
-                <div style="margin-bottom: 16px;">
-                    <label style="font-size: 0.9rem; font-weight: 600; display: block; margin-bottom: 8px;">
-                        Pegar JSON del scraper
-                    </label>
-                    <textarea id="importJsonInput"
-                              placeholder="Pegá el JSON aquí..."
-                              style="width: 100%; height: 70px; padding: 12px; border: 2px solid var(--border); border-radius: 12px; font-size: 0.9rem; resize: none;"></textarea>
-                </div>
-
-                <div class="modal-btns" style="margin-top: 20px;">
-                    <button class="modal-btn secondary" onclick="closeImportModal()">Cancelar</button>
-                    <button class="modal-btn primary" onclick="loadPaulinaMenu()" style="font-size: 1rem;">
-                        Crear lista
+                    <button onclick="loadPaulinaMenu()" class="modal-btn primary" style="width: 100%; padding: 12px;">
+                        Importar semana
                     </button>
                 </div>
+
+                <!-- Opción 3: JSON (colapsado) -->
+                <details style="margin-top: 12px;">
+                    <summary style="cursor: pointer; color: var(--text-light); font-size: 0.85rem; padding: 8px 0;">
+                        Pegar JSON manualmente...
+                    </summary>
+                    <textarea id="importJsonInput"
+                              placeholder="Pegá el JSON del scraper aquí..."
+                              style="width: 100%; height: 80px; padding: 12px; border: 2px solid var(--border); border-radius: 10px; font-size: 0.9rem; resize: none; margin-top: 8px;"></textarea>
+                    <button onclick="loadPaulinaMenu()" class="modal-btn secondary" style="width: 100%; margin-top: 8px;">
+                        Importar JSON
+                    </button>
+                </details>
+
+                <button class="modal-btn secondary" onclick="closeImportModal()" style="width: 100%; margin-top: 16px;">
+                    Cancelar
+                </button>
             </div>
 
             <!-- Paso 2: Seleccionar platos (solo si el menú tiene platos individuales) -->
@@ -2621,6 +2627,22 @@
             pendingPaulinaData = null;
         }
 
+        // Crear lista vacía desde el modal unificado
+        async function createEmptyList() {
+            const now = new Date();
+            const weekNum = Math.ceil((now - new Date(now.getFullYear(), 0, 1)) / (7 * 24 * 60 * 60 * 1000));
+            const name = `Semana ${weekNum}`;
+
+            const weekId = createWeekData(name);
+            await saveWeekToCloud(weekId);
+
+            closeImportModal();
+            renderWeeksDropdown();
+            selectWeek(weekId);
+
+            showToast('Lista vacía creada', 'success');
+        }
+
         function backToStep1() {
             document.getElementById('importStep1').style.display = 'block';
             document.getElementById('importStep2').style.display = 'none';
@@ -2792,14 +2814,20 @@
             const weekId = 'week_' + Date.now();
 
             let counter = 0;
+            let duplicatesSkipped = 0;
+            let totalProcessed = 0;
             const newItems = {};
             const seenItems = { general: new Set(), veggie: new Set() };
 
             function addItemIfNotDuplicate(product, categoryName, listType) {
+                totalProcessed++;
                 // Usar normalización agresiva para detectar duplicados como:
                 // "1 puré de tomate (usarás 2 cdas.)" y "1 puré de tomate (vas a usar 2 cdas.)"
                 const normalized = normalizeIngredient(product);
+                console.log(`[Dedup] "${product}" → "${normalized}"`);
                 if (!normalized || seenItems[listType].has(normalized)) {
+                    duplicatesSkipped++;
+                    console.log(`  → DUPLICADO (ya existe en ${listType})`);
                     return false;
                 }
                 seenItems[listType].add(normalized);
@@ -2856,7 +2884,12 @@
             selectWeek(weekId);
 
             const totalItems = Object.keys(newItems).length;
-            showToast(`Importados ${totalItems} productos`, 'success');
+            let msg = `${totalItems} productos importados`;
+            if (duplicatesSkipped > 0) {
+                msg += ` (${duplicatesSkipped} duplicados eliminados)`;
+            }
+            console.log(`[Import] Total procesados: ${totalProcessed}, Importados: ${totalItems}, Duplicados: ${duplicatesSkipped}`);
+            showToast(msg, 'success');
         }
 
         // Mantener compatibilidad con importación directa (legacy)
