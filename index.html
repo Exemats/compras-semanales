@@ -1063,20 +1063,20 @@
             <!-- Paso 1: Seleccionar fuente -->
             <div id="importStep1">
                 <p style="font-size: 0.85rem; color: var(--text-light); margin-bottom: 12px;">
-                    Ingresá el número de semana o pegá el JSON del scraper
+                    Ingresá el número de semana o pegá el JSON
                 </p>
                 <input type="number" id="weekNumberInput" placeholder="Número de semana (ej: 5)" min="1" max="52" style="margin-bottom: 8px;">
                 <textarea id="importJsonInput" placeholder="O pegá el JSON aquí..." style="width: 100%; height: 80px; padding: 12px; border: 2px solid var(--border); border-radius: 10px; font-size: 0.9rem; resize: none; margin-bottom: 12px;"></textarea>
                 <div class="modal-btns">
                     <button class="modal-btn secondary" onclick="closeImportModal()">Cancelar</button>
-                    <button class="modal-btn primary" onclick="loadPaulinaMenu()">Cargar</button>
+                    <button class="modal-btn primary" onclick="loadPaulinaMenu()">Importar</button>
                 </div>
             </div>
 
-            <!-- Paso 2: Seleccionar platos/días -->
+            <!-- Paso 2: Seleccionar platos (solo si el menú tiene platos individuales) -->
             <div id="importStep2" style="display: none;">
                 <div id="menuPreview" style="margin-bottom: 12px;">
-                    <div style="font-weight: 600; margin-bottom: 8px;" id="menuTitle">Menú cargado</div>
+                    <div style="font-weight: 600; margin-bottom: 8px;" id="menuTitle">Menú especial</div>
                     <div style="font-size: 0.8rem; color: var(--text-light);" id="menuDates"></div>
                 </div>
 
@@ -1084,7 +1084,7 @@
                 <div id="menuTypeInfo" style="background: var(--bg-secondary); padding: 10px; border-radius: 8px; margin-bottom: 12px; font-size: 0.85rem;">
                 </div>
 
-                <!-- Lista de platos/días seleccionables -->
+                <!-- Lista de platos seleccionables -->
                 <div id="platosContainer" style="max-height: 200px; overflow-y: auto; margin-bottom: 12px;">
                 </div>
 
@@ -1095,8 +1095,8 @@
                 </div>
 
                 <div class="modal-btns">
-                    <button class="modal-btn secondary" onclick="backToStep1()">← Atrás</button>
-                    <button class="modal-btn primary" onclick="importSelectedPlatos()">Importar seleccionados</button>
+                    <button class="modal-btn secondary" onclick="backToStep1()">Atrás</button>
+                    <button class="modal-btn primary" onclick="importSelectedPlatos()">Crear lista</button>
                 </div>
             </div>
         </div>
@@ -1461,6 +1461,33 @@
                 .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // Remove accents
                 .replace(/[^a-z0-9\s]/g, ' ')
                 .trim();
+        }
+
+        // Normalización más agresiva para detectar duplicados de ingredientes
+        // Ej: "1 puré de tomate (usarás 2 cdas.)" y "1 puré de tomate (vas a usar 2 cdas.)"
+        // ambos se normalizan a "pure tomate"
+        function normalizeIngredient(text) {
+            let normalized = text.toLowerCase()
+                .normalize('NFD').replace(/[\u0300-\u036f]/g, ''); // Remove accents
+
+            // Remover contenido entre paréntesis
+            normalized = normalized.replace(/\([^)]*\)/g, '');
+
+            // Remover cantidades al inicio: "1 ", "2 ", "1/2 ", "100g ", etc.
+            normalized = normalized.replace(/^[\d\s\/½¼¾,.]+\s*(g|gr|kg|ml|l|lt|lts|litro|litros|cdas?|cucharadas?|tazas?|unidad|unidades|paquete|paquetes|lata|latas|sobre|sobres)?\s*/i, '');
+
+            // Remover palabras comunes de cantidad al inicio
+            normalized = normalized.replace(/^(un|una|uno|dos|tres|cuatro|cinco|medio|media|pizca|chorro|poco|mucho)\s+/gi, '');
+
+            // Remover caracteres especiales y números restantes
+            normalized = normalized.replace(/[^a-z\s]/g, ' ');
+
+            // Colapsar espacios múltiples
+            normalized = normalized.replace(/\s+/g, ' ').trim();
+
+            // Extraer las primeras 3 palabras significativas (el core del ingrediente)
+            const words = normalized.split(' ').filter(w => w.length > 1);
+            return words.slice(0, 3).join(' ');
         }
 
         function findMatches(searchText) {
@@ -2605,8 +2632,21 @@
             showStep2(data);
         }
 
-        // Mostrar paso 2 con opciones de selección
+        // Mostrar paso 2 con opciones de selección (o importar directo si no hay opciones)
         function showStep2(data) {
+            // Determinar si tiene platos individuales o lista general
+            const tienePlatos = data.platos && data.platos.length > 0;
+            const tieneListaGeneral = data.general && Object.keys(data.general).length > 0;
+
+            // Si es lista general simple, importar directamente sin paso 2
+            if (!tienePlatos && tieneListaGeneral) {
+                const totalItems = Object.values(data.general).reduce((sum, items) => sum + items.length, 0);
+                showToast(`Importando ${totalItems} productos...`, 'success');
+                createWeekFromImport(data, { general: data.general, veggie: data.veggie || data.general });
+                return;
+            }
+
+            // Si tiene platos seleccionables, mostrar paso 2
             document.getElementById('importStep1').style.display = 'none';
             document.getElementById('importStep2').style.display = 'block';
 
@@ -2620,15 +2660,11 @@
 
             platosContainer.innerHTML = '';
 
-            // Determinar si tiene platos individuales o lista general
-            const tienePlatos = data.platos && data.platos.length > 0;
-            const tieneListaGeneral = data.general && Object.keys(data.general).length > 0;
-
             if (tienePlatos) {
-                // Menú con platos individuales
+                // Menú con platos individuales - mostrar para seleccionar
                 menuTypeInfo.innerHTML = `
                     <div style="color: var(--primary);">🍽️ Menú con ${data.platos.length} platos</div>
-                    <div style="margin-top: 4px;">Seleccioná los platos que querés incluir en tu lista de compras:</div>
+                    <div style="margin-top: 4px;">Seleccioná los platos que querés incluir:</div>
                 `;
                 quickSelectBtns.style.display = 'flex';
 
@@ -2645,50 +2681,6 @@
                     `;
                     platosContainer.appendChild(platoDiv);
                 });
-            } else if (tieneListaGeneral) {
-                // Menú con lista general - mostrar días si están disponibles
-                const totalItems = Object.values(data.general).reduce((sum, items) => sum + items.length, 0);
-
-                // Intentar detectar si hay recetas por día
-                if (data.recetas && Object.keys(data.recetas).length > 0) {
-                    menuTypeInfo.innerHTML = `
-                        <div style="color: var(--primary);">📅 Menú semanal con ${Object.keys(data.recetas).length} días</div>
-                        <div style="margin-top: 4px;">Seleccioná los días que querés incluir:</div>
-                    `;
-                    quickSelectBtns.style.display = 'flex';
-
-                    Object.entries(data.recetas).forEach(([dia, receta], index) => {
-                        const ingredientCount = receta.ingredientes ? receta.ingredientes.length : 0;
-                        const diaDiv = document.createElement('div');
-                        diaDiv.style.cssText = 'display: flex; align-items: center; padding: 8px; border-bottom: 1px solid var(--border); gap: 10px;';
-                        diaDiv.innerHTML = `
-                            <input type="checkbox" id="dia_${index}" data-dia="${dia}" checked style="width: 18px; height: 18px; cursor: pointer;">
-                            <label for="dia_${index}" style="flex: 1; cursor: pointer;">
-                                <div style="font-weight: 500;">${dia}</div>
-                                <div style="font-size: 0.75rem; color: var(--text-light);">${receta.nombre || ''} (${ingredientCount} ing.)</div>
-                            </label>
-                        `;
-                        platosContainer.appendChild(diaDiv);
-                    });
-                } else {
-                    // Solo lista general sin días
-                    menuTypeInfo.innerHTML = `
-                        <div style="color: var(--primary);">📋 Lista de compras completa</div>
-                        <div style="margin-top: 4px;">${totalItems} productos en ${Object.keys(data.general).length} categorías</div>
-                    `;
-                    quickSelectBtns.style.display = 'none';
-
-                    // Mostrar resumen de categorías
-                    Object.entries(data.general).forEach(([categoria, items]) => {
-                        const catDiv = document.createElement('div');
-                        catDiv.style.cssText = 'display: flex; justify-content: space-between; padding: 6px 8px; border-bottom: 1px solid var(--border);';
-                        catDiv.innerHTML = `
-                            <span>${mapCategoryName(categoria)}</span>
-                            <span style="color: var(--text-light);">${items.length} items</span>
-                        `;
-                        platosContainer.appendChild(catDiv);
-                    });
-                }
             } else {
                 menuTypeInfo.innerHTML = `<div style="color: var(--danger);">⚠️ No se encontraron datos válidos</div>`;
                 quickSelectBtns.style.display = 'none';
@@ -2703,7 +2695,7 @@
             document.querySelectorAll('#platosContainer input[type="checkbox"]').forEach(cb => cb.checked = false);
         }
 
-        // Paso 2: Importar los platos/días seleccionados
+        // Paso 2: Importar los platos seleccionados
         async function importSelectedPlatos() {
             if (!pendingPaulinaData) {
                 showToast('No hay datos cargados', 'error');
@@ -2711,67 +2703,33 @@
             }
 
             const data = pendingPaulinaData;
-            const tienePlatos = data.platos && data.platos.length > 0;
-            const tieneRecetas = data.recetas && Object.keys(data.recetas).length > 0;
 
-            let itemsToImport = { general: {}, veggie: {} };
+            // Obtener platos seleccionados
+            const selectedIndices = [];
+            document.querySelectorAll('#platosContainer input[type="checkbox"]:checked').forEach(cb => {
+                const index = parseInt(cb.id.replace('plato_', ''));
+                if (!isNaN(index)) selectedIndices.push(index);
+            });
 
-            if (tienePlatos) {
-                // Combinar ingredientes de platos seleccionados
-                const selectedIndices = [];
-                document.querySelectorAll('#platosContainer input[type="checkbox"]:checked').forEach(cb => {
-                    const index = parseInt(cb.id.replace('plato_', ''));
-                    selectedIndices.push(index);
-                });
-
-                if (selectedIndices.length === 0) {
-                    showToast('Seleccioná al menos un plato', 'warning');
-                    return;
-                }
-
-                // Combinar ingredientes de platos seleccionados
-                const combinedIngredients = [];
-                selectedIndices.forEach(index => {
-                    const plato = data.platos[index];
-                    if (plato && plato.ingredientes) {
-                        combinedIngredients.push(...plato.ingredientes);
-                    }
-                });
-
-                // Agrupar por categoría (todos van a Supermercado por defecto)
-                itemsToImport.general = { 'Supermercado 🏪': combinedIngredients };
-                itemsToImport.veggie = { 'Supermercado 🏪': combinedIngredients };
-
-            } else if (tieneRecetas) {
-                // Combinar ingredientes de días seleccionados
-                const selectedDias = [];
-                document.querySelectorAll('#platosContainer input[type="checkbox"]:checked').forEach(cb => {
-                    const dia = cb.dataset.dia;
-                    if (dia) selectedDias.push(dia);
-                });
-
-                if (selectedDias.length === 0) {
-                    showToast('Seleccioná al menos un día', 'warning');
-                    return;
-                }
-
-                // Combinar ingredientes de días seleccionados
-                const combinedIngredients = [];
-                selectedDias.forEach(dia => {
-                    const receta = data.recetas[dia];
-                    if (receta && receta.ingredientes) {
-                        combinedIngredients.push(...receta.ingredientes);
-                    }
-                });
-
-                itemsToImport.general = { 'Supermercado 🏪': combinedIngredients };
-                itemsToImport.veggie = { 'Supermercado 🏪': combinedIngredients };
-
-            } else if (data.general) {
-                // Usar lista general completa
-                itemsToImport.general = data.general;
-                itemsToImport.veggie = data.veggie || data.general;
+            if (selectedIndices.length === 0) {
+                showToast('Seleccioná al menos un plato', 'warning');
+                return;
             }
+
+            // Combinar ingredientes de platos seleccionados
+            const combinedIngredients = [];
+            selectedIndices.forEach(index => {
+                const plato = data.platos[index];
+                if (plato && plato.ingredientes) {
+                    combinedIngredients.push(...plato.ingredientes);
+                }
+            });
+
+            // Agrupar por categoría (todos van a Supermercado por defecto)
+            const itemsToImport = {
+                general: { 'Supermercado 🏪': combinedIngredients },
+                veggie: { 'Supermercado 🏪': combinedIngredients }
+            };
 
             // Crear la semana con los items seleccionados
             await createWeekFromImport(data, itemsToImport);
@@ -2788,8 +2746,10 @@
             const seenItems = { general: new Set(), veggie: new Set() };
 
             function addItemIfNotDuplicate(product, categoryName, listType) {
-                const normalized = normalizeText(product);
-                if (seenItems[listType].has(normalized)) {
+                // Usar normalización agresiva para detectar duplicados como:
+                // "1 puré de tomate (usarás 2 cdas.)" y "1 puré de tomate (vas a usar 2 cdas.)"
+                const normalized = normalizeIngredient(product);
+                if (!normalized || seenItems[listType].has(normalized)) {
                     return false;
                 }
                 seenItems[listType].add(normalized);
