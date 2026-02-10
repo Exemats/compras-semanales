@@ -763,6 +763,13 @@ class PaulinaExtractor:
                 self.lista_general = self._extraer_lista_alternativo()
                 self.lista_veggie = self.lista_general.copy()
 
+            # También extraer recetas por día para permitir selección de días
+            self.recetas_por_dia = self._extraer_recetas_por_dia()
+            if self.recetas_por_dia:
+                print(f"   📅 Recetas por día: {len(self.recetas_por_dia)} días")
+                for dia, data in self.recetas_por_dia.items():
+                    print(f"      {dia}: {data['nombre']} ({len(data['ingredientes'])} ingredientes)")
+
             total_general = sum(len(cat['items']) for cat in self.lista_general.values())
             total_veggie = sum(len(cat['items']) for cat in self.lista_veggie.values())
 
@@ -793,7 +800,9 @@ class PaulinaExtractor:
         if self.modo == 'general' or self.modo == 'platos' or (self.modo not in ['dias'] + self.DIAS):
             resultado['general'] = {cat: data['items'] for cat, data in ordenar_categorias(self.lista_general).items()}
             resultado['veggie'] = {cat: data['items'] for cat, data in ordenar_categorias(self.lista_veggie).items()}
-        else:
+
+        # Siempre incluir recetas por día si están disponibles
+        if self.recetas_por_dia:
             resultado['recetas'] = self.recetas_por_dia
 
         return resultado
