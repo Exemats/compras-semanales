@@ -215,6 +215,226 @@
             color: var(--text);
         }
 
+        .modal-close {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--text-light);
+        }
+
+        /* ==================== IMPORT MODAL ==================== */
+        .import-modal {
+            max-width: 420px;
+            max-height: 85vh;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .import-tabs {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 16px;
+            background: var(--bg);
+            padding: 4px;
+            border-radius: 10px;
+        }
+
+        .import-tab {
+            flex: 1;
+            padding: 8px 12px;
+            border: none;
+            background: transparent;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            color: var(--text-light);
+        }
+
+        .import-tab.active {
+            background: white;
+            color: var(--primary);
+            font-weight: 600;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .import-content {
+            display: none;
+        }
+
+        .import-content.active {
+            display: block;
+        }
+
+        .import-hint {
+            font-size: 0.8rem;
+            color: var(--text-light);
+            margin-bottom: 12px;
+        }
+
+        .available-weeks {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .week-option {
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            border: 2px solid var(--border);
+            border-radius: 10px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .week-option:hover {
+            border-color: var(--primary);
+            background: #fff5f5;
+        }
+
+        .week-option .week-info {
+            flex: 1;
+        }
+
+        .week-option .week-name {
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        .week-option .week-dates {
+            font-size: 0.8rem;
+            color: var(--text-light);
+        }
+
+        .week-option .week-count {
+            font-size: 0.75rem;
+            color: var(--primary);
+            background: #fff0f0;
+            padding: 4px 8px;
+            border-radius: 12px;
+        }
+
+        .scraper-controls {
+            display: flex;
+            gap: 8px;
+        }
+
+        .scraper-controls input {
+            flex: 1;
+            margin-bottom: 0;
+        }
+
+        .scraper-controls button {
+            flex-shrink: 0;
+        }
+
+        .scraper-status {
+            margin-top: 12px;
+            padding: 12px;
+            border-radius: 10px;
+            font-size: 0.85rem;
+            display: none;
+        }
+
+        .scraper-status.loading {
+            display: block;
+            background: #e3f2fd;
+            color: #1565c0;
+        }
+
+        .scraper-status.success {
+            display: block;
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        .scraper-status.error {
+            display: block;
+            background: #ffebee;
+            color: #c62828;
+        }
+
+        #importJsonInput {
+            width: 100%;
+            height: 120px;
+            padding: 12px;
+            border: 2px solid var(--border);
+            border-radius: 10px;
+            font-size: 0.85rem;
+            resize: none;
+            font-family: monospace;
+        }
+
+        /* Preview */
+        .import-preview {
+            margin-top: 16px;
+            padding: 16px;
+            background: var(--bg);
+            border-radius: 12px;
+        }
+
+        .import-preview h4 {
+            margin-bottom: 12px;
+            font-size: 0.95rem;
+        }
+
+        .preview-header {
+            margin-bottom: 12px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .preview-header .title {
+            font-weight: 600;
+            font-size: 1rem;
+        }
+
+        .preview-header .dates {
+            font-size: 0.85rem;
+            color: var(--text-light);
+        }
+
+        .preview-categories {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .preview-category {
+            margin-bottom: 8px;
+        }
+
+        .preview-category .cat-name {
+            font-weight: 600;
+            font-size: 0.85rem;
+            margin-bottom: 4px;
+        }
+
+        .preview-category .cat-items {
+            font-size: 0.8rem;
+            color: var(--text-light);
+            padding-left: 12px;
+        }
+
+        .preview-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 16px;
+        }
+
+        .no-weeks {
+            text-align: center;
+            padding: 24px;
+            color: var(--text-light);
+        }
+
+        .no-weeks button {
+            margin-top: 12px;
+        }
+
         /* ==================== QUICK REGISTER ==================== */
         .quick-register {
             background: linear-gradient(135deg, #1e3a5f, #2d5a87);
@@ -1162,6 +1382,26 @@
                     </button>
                 </div>
             </div>
+
+            <!-- Tab: Pegar JSON -->
+            <div class="import-content" id="tabJson">
+                <p class="import-hint">Pegá el JSON generado por el scraper:</p>
+                <textarea id="importJsonInput" placeholder="Pegá el JSON aquí..."></textarea>
+                <button class="modal-btn primary" onclick="importFromJson()" style="margin-top: 8px; width: 100%;">Importar JSON</button>
+            </div>
+
+            <!-- Preview de la lista -->
+            <div class="import-preview" id="importPreview" style="display: none;">
+                <h4>Vista previa</h4>
+                <div class="preview-header" id="previewHeader"></div>
+                <div class="preview-categories" id="previewCategories"></div>
+                <div class="preview-actions">
+                    <button class="modal-btn secondary" onclick="cancelPreview()">Cancelar</button>
+                    <button class="modal-btn primary" onclick="confirmImport()">✓ Importar</button>
+                </div>
+            </div>
+
+            <button class="modal-close" onclick="closeImportModal()">×</button>
         </div>
     </div>
 
