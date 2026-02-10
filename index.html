@@ -2708,7 +2708,8 @@
             if (!tienePlatos && tieneListaGeneral) {
                 const totalItems = Object.values(data.general).reduce((sum, items) => sum + items.length, 0);
                 showToast(`Importando ${totalItems} productos...`, 'success');
-                createWeekFromImport(data, { general: data.general, veggie: data.veggie || data.general });
+                const hasSeperateVeggie = data.veggie && JSON.stringify(data.veggie) !== JSON.stringify(data.general);
+                createWeekFromImport(data, { general: data.general, veggie: hasSeperateVeggie ? data.veggie : {} });
                 return;
             }
 
@@ -2797,10 +2798,13 @@
                 }
             });
 
-            // Agrupar por categoría (todos van a Supermercado por defecto)
+            // Agrupar por categoría
+            // Usar la lista veggie del scraper si existe y es distinta de la general,
+            // en vez de duplicar los mismos ingredientes en ambas listas
+            const hasSeperateVeggie = data.veggie && JSON.stringify(data.veggie) !== JSON.stringify(data.general);
             const itemsToImport = {
                 general: { 'Supermercado 🏪': combinedIngredients },
-                veggie: { 'Supermercado 🏪': combinedIngredients }
+                veggie: hasSeperateVeggie ? data.veggie : {}
             };
 
             // Crear la semana con los items seleccionados
