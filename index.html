@@ -107,18 +107,27 @@
             display: flex;
             align-items: center;
             gap: 5px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .sync-status:active {
+            transform: scale(0.95);
         }
 
         .sync-status.synced {
             color: #4ade80;
+            background: rgba(74, 222, 128, 0.15);
         }
 
         .sync-status.syncing {
             color: #fbbf24;
+            background: rgba(251, 191, 36, 0.15);
         }
 
         .sync-status.error {
             color: #f87171;
+            background: rgba(248, 113, 113, 0.15);
         }
 
         @keyframes spin {
@@ -840,11 +849,90 @@
             font-size: 1.1rem;
             padding: 4px 8px;
             cursor: pointer;
-            opacity: 0.5;
+            opacity: 0.6;
+            transition: opacity 0.2s;
+        }
+
+        .delete-btn:hover {
+            opacity: 1;
         }
 
         .delete-btn:active {
             opacity: 1;
+            transform: scale(0.95);
+        }
+
+        /* Confirm delete modal */
+        .confirm-modal {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            padding: 20px;
+            border-radius: 20px 20px 0 0;
+            box-shadow: 0 -5px 30px rgba(0,0,0,0.2);
+            transform: translateY(100%);
+            transition: transform 0.3s ease;
+            z-index: 250;
+        }
+
+        .confirm-modal.active {
+            transform: translateY(0);
+        }
+
+        .confirm-modal-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s;
+            z-index: 240;
+        }
+
+        .confirm-modal-backdrop.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .confirm-modal h4 {
+            margin-bottom: 8px;
+            font-size: 1rem;
+        }
+
+        .confirm-modal p {
+            color: var(--text-light);
+            font-size: 0.9rem;
+            margin-bottom: 16px;
+        }
+
+        .confirm-modal-btns {
+            display: flex;
+            gap: 10px;
+        }
+
+        .confirm-modal-btns button {
+            flex: 1;
+            padding: 14px;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .confirm-modal-btns .cancel-btn {
+            background: #f0f0f0;
+            color: var(--text);
+        }
+
+        .confirm-modal-btns .delete-confirm-btn {
+            background: #ef4444;
+            color: white;
         }
 
         /* ==================== BOTTOM ACTIONS ==================== */
@@ -854,30 +942,53 @@
             left: 0;
             right: 0;
             background: var(--card-bg);
-            padding: 10px 16px;
+            padding: 12px 16px;
+            padding-bottom: max(12px, env(safe-area-inset-bottom));
             display: flex;
-            gap: 8px;
-            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+            gap: 10px;
+            box-shadow: 0 -2px 15px rgba(0,0,0,0.1);
             z-index: 100;
         }
 
         .bottom-btn {
             flex: 1;
-            padding: 12px;
+            padding: 14px 12px;
             border: none;
-            border-radius: 10px;
-            font-size: 0.85rem;
+            border-radius: 12px;
+            font-size: 1rem;
             font-weight: 600;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 6px;
+            gap: 8px;
+            transition: transform 0.1s, opacity 0.1s;
+        }
+
+        .bottom-btn:active {
+            transform: scale(0.96);
+            opacity: 0.9;
+        }
+
+        .bottom-btn.primary {
+            background: var(--primary);
+            color: white;
+            flex: 2;
+        }
+
+        .bottom-btn.secondary {
+            background: #f0f0f0;
+            color: var(--text);
         }
 
         .bottom-btn.whatsapp {
             background: #25D366;
             color: white;
+        }
+
+        .bottom-btn.small {
+            flex: 0;
+            padding: 14px 16px;
         }
 
         .bottom-btn.secondary {
@@ -1107,24 +1218,14 @@
         <select id="weekDropdown" class="week-dropdown" onchange="selectWeek(this.value)">
             <option value="">Cargando semanas...</option>
         </select>
-        <button class="week-btn" onclick="openNewWeekModal()" title="Nueva semana">➕</button>
+        <button class="week-btn" onclick="openImportModal()" title="Nueva lista">➕</button>
         <button class="week-btn danger" onclick="deleteCurrentWeek()" title="Eliminar semana">🗑️</button>
-        <div class="sync-status" id="syncStatus">
+        <button class="week-btn" onclick="forceSync()" title="Sincronizar" id="syncBtn">🔄</button>
+        <div class="sync-status" id="syncStatus" onclick="forceSync()">
             <span>☁️</span> <span id="syncText">Local</span>
         </div>
     </div>
 
-    <!-- Modal Nueva Semana -->
-    <div class="modal-overlay" id="newWeekModal">
-        <div class="modal">
-            <h3>📅 Nueva Semana</h3>
-            <input type="text" id="weekNameInput" placeholder="Ej: Semana 5 - Febrero" maxlength="40">
-            <div class="modal-btns">
-                <button class="modal-btn secondary" onclick="closeNewWeekModal()">Cancelar</button>
-                <button class="modal-btn primary" onclick="createNewWeek()">Crear</button>
-            </div>
-        </div>
-    </div>
 
     <!-- Quick Register -->
     <div class="quick-register">
@@ -1179,41 +1280,107 @@
 
         <!-- Bottom Actions -->
         <div class="bottom-bar">
-            <button class="bottom-btn secondary" onclick="resetAll()">🗑️</button>
-            <button class="bottom-btn secondary" onclick="addExtra()">➕ Extra</button>
-            <button class="bottom-btn import-btn" onclick="openImportModal()">📥 Paulina</button>
-            <button class="bottom-btn whatsapp" onclick="shareWhatsApp()">📱</button>
+            <button class="bottom-btn secondary small" onclick="resetAll()">🗑️</button>
+            <button class="bottom-btn primary" onclick="openImportModal()">📥 Nueva lista</button>
+            <button class="bottom-btn secondary" onclick="addExtra()">➕</button>
+            <button class="bottom-btn whatsapp small" onclick="shareWhatsApp()">📱</button>
         </div>
     </div><!-- End app-content -->
 
-    <!-- Modal Importar desde Paulina -->
+    <!-- Modal Nueva Lista (unificado) -->
     <div class="modal-overlay" id="importModal">
-        <div class="modal import-modal">
-            <h3>📥 Importar de Paulina Cocina</h3>
+        <div class="modal" style="max-width: 380px;">
+            <!-- Paso 1: Seleccionar fuente -->
+            <div id="importStep1">
+                <h3 style="margin-bottom: 20px; font-size: 1.2rem;">📝 Nueva lista</h3>
 
-            <!-- Tabs -->
-            <div class="import-tabs">
-                <button class="import-tab active" onclick="switchImportTab('disponibles')">📋 Disponibles</button>
-                <button class="import-tab" onclick="switchImportTab('scrapear')">🔄 Scrapear</button>
-                <button class="import-tab" onclick="switchImportTab('json')">📄 JSON</button>
+                <!-- Opción 1: Lista vacía -->
+                <button onclick="createEmptyList()"
+                        style="width: 100%; padding: 16px; margin-bottom: 12px; background: var(--bg); border: 2px solid var(--border); border-radius: 12px; font-size: 1rem; cursor: pointer; display: flex; align-items: center; gap: 12px;">
+                    <span style="font-size: 1.5rem;">📋</span>
+                    <div style="text-align: left;">
+                        <div style="font-weight: 600;">Lista vacía</div>
+                        <div style="font-size: 0.8rem; color: var(--text-light);">Crear lista nueva desde cero</div>
+                    </div>
+                </button>
+
+                <!-- Opción 2: Importar de Paulina -->
+                <button onclick="browseAvailableWeeks()"
+                        style="width: 100%; padding: 16px; margin-bottom: 12px; background: var(--bg); border: 2px solid var(--border); border-radius: 12px; font-size: 1rem; cursor: pointer; display: flex; align-items: center; gap: 12px;">
+                    <span style="font-size: 1.5rem;">🍳</span>
+                    <div style="text-align: left;">
+                        <div style="font-weight: 600;">Importar de Paulina</div>
+                        <div style="font-size: 0.8rem; color: var(--text-light);">Menú semanal de Paulina Cocina</div>
+                    </div>
+                </button>
+
+                <!-- Opción 3: JSON (colapsado) -->
+                <details style="margin-top: 4px;">
+                    <summary style="cursor: pointer; color: var(--text-light); font-size: 0.85rem; padding: 8px 0;">
+                        Pegar JSON manualmente...
+                    </summary>
+                    <textarea id="importJsonInput"
+                              placeholder="Pegá el JSON del scraper aquí..."
+                              style="width: 100%; height: 80px; padding: 12px; border: 2px solid var(--border); border-radius: 10px; font-size: 0.9rem; resize: none; margin-top: 8px;"></textarea>
+                    <button onclick="loadFromJson()" class="modal-btn secondary" style="width: 100%; margin-top: 8px;">
+                        Importar JSON
+                    </button>
+                </details>
+
+                <button class="modal-btn secondary" onclick="closeImportModal()" style="width: 100%; margin-top: 16px;">
+                    Cancelar
+                </button>
             </div>
 
-            <!-- Tab: Semanas disponibles en Firebase -->
-            <div class="import-content active" id="tabDisponibles">
-                <p class="import-hint">Semanas ya scrapeadas y listas para importar:</p>
-                <div class="available-weeks" id="availableWeeksList">
-                    <div class="loading">Cargando...</div>
+            <!-- Paso 2: Semanas disponibles -->
+            <div id="importStep2" style="display: none;">
+                <h3 style="margin-bottom: 16px; font-size: 1.1rem;">🍳 Semanas disponibles</h3>
+
+                <div id="availableWeeksLoading" style="text-align: center; padding: 24px; color: var(--text-light);">
+                    Cargando semanas...
                 </div>
+
+                <div id="availableWeeksList" style="max-height: 320px; overflow-y: auto; margin-bottom: 16px;">
+                </div>
+
+                <div id="availableWeeksEmpty" style="display: none; text-align: center; padding: 24px;">
+                    <div style="font-size: 2rem; margin-bottom: 8px;">📭</div>
+                    <div style="color: var(--text-light); font-size: 0.9rem;">No hay semanas disponibles.</div>
+                    <div style="color: var(--text-light); font-size: 0.8rem; margin-top: 4px;">Ejecutá el scraper primero para subir menús.</div>
+                </div>
+
+                <button class="modal-btn secondary" onclick="backToStep1()" style="width: 100%;">
+                    ← Atrás
+                </button>
             </div>
 
-            <!-- Tab: Scrapear nueva semana -->
-            <div class="import-content" id="tabScrapear">
-                <p class="import-hint">Scrapear una semana directamente desde Paulina Cocina:</p>
-                <div class="scraper-controls">
-                    <input type="number" id="scrapeWeekNumber" placeholder="Número de semana" min="1" max="52">
-                    <button class="modal-btn primary" onclick="scrapeFromWeb()">🔄 Scrapear</button>
+            <!-- Paso 3: Seleccionar qué importar de la semana elegida -->
+            <div id="importStep3" style="display: none;">
+                <h3 style="margin-bottom: 4px; font-size: 1.1rem;" id="menuTitle">Menú</h3>
+                <p style="font-size: 0.8rem; color: var(--text-light); margin-bottom: 16px;" id="menuDates"></p>
+
+                <!-- Opciones de importación -->
+                <div id="importOptions" style="margin-bottom: 16px;">
                 </div>
-                <div class="scraper-status" id="scraperStatus"></div>
+
+                <!-- Lista de platos seleccionables (solo si hay platos) -->
+                <div id="platosSection" style="display: none;">
+                    <div id="menuTypeInfo" style="background: var(--bg); padding: 12px; border-radius: 10px; margin-bottom: 12px; font-size: 0.9rem;">
+                    </div>
+                    <div id="platosContainer" style="max-height: 180px; overflow-y: auto; margin-bottom: 12px; border: 1px solid var(--border); border-radius: 10px;">
+                    </div>
+                    <div id="quickSelectBtns" style="display: flex; gap: 8px; margin-bottom: 16px;">
+                        <button class="modal-btn secondary" style="flex: 1; padding: 10px;" onclick="selectAllPlatos()">Todos</button>
+                        <button class="modal-btn secondary" style="flex: 1; padding: 10px;" onclick="selectNonePlatos()">Ninguno</button>
+                    </div>
+                </div>
+
+                <div class="modal-btns">
+                    <button class="modal-btn secondary" onclick="backToStep2()">← Atrás</button>
+                    <button class="modal-btn primary" onclick="executeImport()" style="font-size: 1rem;">
+                        Crear lista
+                    </button>
+                </div>
             </div>
 
             <!-- Tab: Pegar JSON -->
@@ -1240,6 +1407,17 @@
 
     <!-- Toast -->
     <div class="toast" id="toast"></div>
+
+    <!-- Confirm Delete Modal -->
+    <div class="confirm-modal-backdrop" id="confirmBackdrop" onclick="closeConfirmModal()"></div>
+    <div class="confirm-modal" id="confirmModal">
+        <h4 id="confirmTitle">Eliminar item</h4>
+        <p id="confirmMessage">Este item se eliminará de la lista.</p>
+        <div class="confirm-modal-btns">
+            <button class="cancel-btn" onclick="closeConfirmModal()">Cancelar</button>
+            <button class="delete-confirm-btn" id="confirmDeleteBtn">Eliminar</button>
+        </div>
+    </div>
 
     <script>
         // Firebase configuration
@@ -1588,6 +1766,33 @@
                 .trim();
         }
 
+        // Normalización más agresiva para detectar duplicados de ingredientes
+        // Ej: "1 puré de tomate (usarás 2 cdas.)" y "1 puré de tomate (vas a usar 2 cdas.)"
+        // ambos se normalizan a "pure tomate"
+        function normalizeIngredient(text) {
+            let normalized = text.toLowerCase()
+                .normalize('NFD').replace(/[\u0300-\u036f]/g, ''); // Remove accents
+
+            // Remover contenido entre paréntesis
+            normalized = normalized.replace(/\([^)]*\)/g, '');
+
+            // Remover cantidades al inicio: "1 ", "2 ", "1/2 ", "100g ", etc.
+            normalized = normalized.replace(/^[\d\s\/½¼¾,.]+\s*(g|gr|kg|ml|l|lt|lts|litro|litros|cdas?|cucharadas?|tazas?|unidad|unidades|paquete|paquetes|lata|latas|sobre|sobres)?\s*/i, '');
+
+            // Remover palabras comunes de cantidad al inicio
+            normalized = normalized.replace(/^(un|una|uno|dos|tres|cuatro|cinco|medio|media|pizca|chorro|poco|mucho)\s+/gi, '');
+
+            // Remover caracteres especiales y números restantes
+            normalized = normalized.replace(/[^a-z\s]/g, ' ');
+
+            // Colapsar espacios múltiples
+            normalized = normalized.replace(/\s+/g, ' ').trim();
+
+            // Extraer las primeras 3 palabras significativas (el core del ingrediente)
+            const words = normalized.split(' ').filter(w => w.length > 1);
+            return words.slice(0, 3).join(' ');
+        }
+
         function findMatches(searchText) {
             const normalized = normalizeText(searchText);
             const words = normalized.split(/\s+/).filter(w => w.length > 2);
@@ -1706,11 +1911,11 @@
         function processInput() {
             const input = document.getElementById('registerInput');
             const text = input.value.trim();
-            
+
             if (!text) return;
 
             const parsed = parseInput(text);
-            
+
             if (parsed.length === 0) {
                 showToast('Agregá el precio. Ej: leche 2500', 'warning');
                 return;
@@ -1726,9 +1931,10 @@
                     items[id].bought = true;
                     items[id].price = item.price;
                     items[id].boughtBy = currentUser?.displayName || currentUser?.email || 'Anónimo';
+                    items[id].itemUpdatedAt = Date.now();
                     totalAdded += item.price;
                     itemsProcessed.push(items[id].name);
-                    
+
                     // Highlight animation
                     setTimeout(() => {
                         const el = document.querySelector(`[data-id="${id}"]`);
@@ -1738,29 +1944,47 @@
                         }
                     }, 100);
                 } else {
-                    // Add as extra
-                    const newId = itemIdCounter++;
-                    items[newId] = {
-                        name: item.searchText.charAt(0).toUpperCase() + item.searchText.slice(1),
-                        category: 'Extras ➕',
-                        bought: true,
-                        price: item.price,
-                        isExtra: true,
-                        listType: currentList,
-                        boughtBy: currentUser?.displayName || currentUser?.email || 'Anónimo'
-                    };
-                    totalAdded += item.price;
-                    itemsProcessed.push(items[newId].name + ' (extra)');
+                    // Verificar si ya existe un extra con el mismo nombre
+                    const normalizedName = normalizeText(item.searchText);
+                    const existingExtra = Object.entries(items).find(([id, i]) =>
+                        i.listType === currentList && i.isExtra && normalizeText(i.name) === normalizedName
+                    );
+
+                    if (existingExtra) {
+                        // Actualizar el extra existente
+                        const [existingId, existingItem] = existingExtra;
+                        existingItem.bought = true;
+                        existingItem.price = (existingItem.price || 0) + item.price;
+                        existingItem.boughtBy = currentUser?.displayName || currentUser?.email || 'Anónimo';
+                        existingItem.itemUpdatedAt = Date.now();
+                        totalAdded += item.price;
+                        itemsProcessed.push(existingItem.name + ' (actualizado)');
+                    } else {
+                        // Add as new extra
+                        const newId = itemIdCounter++;
+                        items[newId] = {
+                            name: item.searchText.charAt(0).toUpperCase() + item.searchText.slice(1),
+                            category: 'Extras ➕',
+                            bought: true,
+                            price: item.price,
+                            isExtra: true,
+                            listType: currentList,
+                            boughtBy: currentUser?.displayName || currentUser?.email || 'Anónimo',
+                            itemUpdatedAt: Date.now()
+                        };
+                        totalAdded += item.price;
+                        itemsProcessed.push(items[newId].name + ' (extra)');
+                    }
                 }
             }
 
             input.value = '';
             document.getElementById('matchPreview').classList.remove('active');
-            
+
             renderList();
             updateTotals();
             saveData();
-            
+
             showToast(`✓ +$${totalAdded.toLocaleString('es-AR')}`, 'success');
         }
 
@@ -1833,7 +2057,7 @@
                                         ${item.boughtBy ? `<span class="bought-by">${item.boughtBy.split(' ')[0]}</span>` : ''}
                                     </div>
                                     ${item.bought ? `<span class="item-price" onclick="editPrice(${item.id}, event)">$${(item.price || 0).toLocaleString('es-AR')}</span>` : ''}
-                                    ${item.isExtra ? `<button class="delete-btn" onclick="deleteItem(${item.id}, event)">×</button>` : ''}
+                                    <button class="delete-btn" onclick="confirmDeleteItem(${item.id}, event)" title="Eliminar">×</button>
                                 </div>
                             `).join('')}
                         </div>
@@ -1933,10 +2157,29 @@
         function addExtra() {
             const name = prompt('Nombre del producto extra:');
             if (!name) return;
-            
+
+            // Verificar duplicados
+            const normalizedName = normalizeText(name);
+            const existingItem = Object.entries(items).find(([id, item]) =>
+                item.listType === currentList && normalizeText(item.name) === normalizedName
+            );
+
+            if (existingItem) {
+                showToast(`"${existingItem[1].name}" ya está en la lista`, 'warning');
+                // Scroll al item existente
+                setTimeout(() => {
+                    const el = document.querySelector(`[data-id="${existingItem[0]}"]`);
+                    if (el) {
+                        el.classList.add('highlight');
+                        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                }, 100);
+                return;
+            }
+
             const priceStr = prompt('Precio (o dejá vacío):');
             const price = parseInt(priceStr) || 0;
-            
+
             const newId = itemIdCounter++;
             items[newId] = {
                 name: name.charAt(0).toUpperCase() + name.slice(1),
@@ -1945,9 +2188,10 @@
                 price: price,
                 isExtra: true,
                 listType: currentList,
-                boughtBy: price > 0 ? (currentUser?.displayName || currentUser?.email || 'Anónimo') : null
+                boughtBy: price > 0 ? (currentUser?.displayName || currentUser?.email || 'Anónimo') : null,
+                itemUpdatedAt: Date.now()
             };
-            
+
             renderList();
             updateTotals();
             saveData();
@@ -1964,6 +2208,7 @@
                 item.bought = false;
                 item.price = 0;
                 item.boughtBy = null;
+                item.itemUpdatedAt = Date.now();
                 showToast('Item desmarcado', 'info');
             } else {
                 // Marcar como comprado - pedir precio
@@ -1973,6 +2218,7 @@
                 item.bought = true;
                 item.price = price;
                 item.boughtBy = currentUser?.displayName || currentUser?.email || 'Anónimo';
+                item.itemUpdatedAt = Date.now();
                 showToast('Item marcado', 'success');
             }
 
@@ -1991,17 +2237,51 @@
             if (newPrice === null) return; // Canceló
 
             item.price = parseInt(newPrice) || 0;
+            item.itemUpdatedAt = Date.now();
             renderList();
             updateTotals();
             saveData();
             showToast('Precio actualizado', 'success');
         }
 
+        let pendingDeleteId = null;
+
+        function confirmDeleteItem(id, event) {
+            if (event) event.stopPropagation();
+            const strId = String(id);
+            if (!items[strId]) return;
+
+            const item = items[strId];
+            pendingDeleteId = strId;
+
+            document.getElementById('confirmTitle').textContent = 'Eliminar item';
+            document.getElementById('confirmMessage').textContent = `¿Eliminar "${item.name}" de la lista?`;
+            document.getElementById('confirmBackdrop').classList.add('active');
+            document.getElementById('confirmModal').classList.add('active');
+            document.getElementById('confirmDeleteBtn').onclick = executeDeleteItem;
+        }
+
+        function closeConfirmModal() {
+            document.getElementById('confirmBackdrop').classList.remove('active');
+            document.getElementById('confirmModal').classList.remove('active');
+            pendingDeleteId = null;
+        }
+
+        function executeDeleteItem() {
+            if (!pendingDeleteId) return;
+
+            delete items[pendingDeleteId];
+            closeConfirmModal();
+            renderList();
+            updateTotals();
+            saveData();
+            showToast('Item eliminado', 'success');
+        }
+
         function deleteItem(id, event) {
             if (event) event.stopPropagation();
-            // Convertir a string porque las keys de objetos JSON son siempre strings
             const strId = String(id);
-            if (items[strId] && items[strId].isExtra) {
+            if (items[strId]) {
                 delete items[strId];
                 renderList();
                 updateTotals();
@@ -2159,6 +2439,7 @@
 
         let unsubscribeListener = null;
         let lastSaveTime = 0;
+        let localSaveId = null; // ID único para identificar guardados propios
 
         async function syncFromFirestore() {
             if (!firebaseReady || !db) return;
@@ -2169,12 +2450,15 @@
                 const weekData = doc.data();
                 const localWeek = weeks[doc.id];
 
-                // Si no existe localmente o el de la nube es más reciente, usar el de la nube
-                if (!localWeek || (weekData.updatedAt > (localWeek.updatedAt || 0))) {
+                // Si no existe localmente, usar el de la nube
+                if (!localWeek) {
                     weeks[doc.id] = {
                         id: doc.id,
                         ...weekData
                     };
+                } else {
+                    // Merge inteligente a nivel de item
+                    weeks[doc.id] = mergeWeekData(localWeek, weekData, doc.id);
                 }
             });
 
@@ -2182,27 +2466,88 @@
             startRealtimeSync();
         }
 
+        // Merge inteligente: compara items individuales por timestamp
+        function mergeWeekData(localWeek, cloudWeek, weekId) {
+            const merged = {
+                id: weekId,
+                name: cloudWeek.name || localWeek.name,
+                createdAt: cloudWeek.createdAt || localWeek.createdAt,
+                updatedAt: Math.max(cloudWeek.updatedAt || 0, localWeek.updatedAt || 0),
+                currentList: cloudWeek.currentList || localWeek.currentList || 'general',
+                itemIdCounter: Math.max(cloudWeek.itemIdCounter || 0, localWeek.itemIdCounter || 0),
+                source: cloudWeek.source || localWeek.source,
+                sourceData: cloudWeek.sourceData || localWeek.sourceData,
+                items: {}
+            };
+
+            const localItems = localWeek.items || {};
+            const cloudItems = cloudWeek.items || {};
+            const allItemIds = new Set([...Object.keys(localItems), ...Object.keys(cloudItems)]);
+
+            for (const itemId of allItemIds) {
+                const localItem = localItems[itemId];
+                const cloudItem = cloudItems[itemId];
+
+                if (!localItem) {
+                    // Item solo existe en la nube
+                    merged.items[itemId] = cloudItem;
+                } else if (!cloudItem) {
+                    // Item solo existe local - mantener si tiene timestamp reciente o fue eliminado en nube
+                    // Solo mantener si es reciente (últimos 30 segundos)
+                    if (localItem.itemUpdatedAt && Date.now() - localItem.itemUpdatedAt < 30000) {
+                        merged.items[itemId] = localItem;
+                    }
+                    // Si no, fue eliminado en la nube, no lo agregamos
+                } else {
+                    // Existe en ambos - usar el más reciente
+                    const localTs = localItem.itemUpdatedAt || 0;
+                    const cloudTs = cloudItem.itemUpdatedAt || 0;
+                    merged.items[itemId] = localTs > cloudTs ? localItem : cloudItem;
+                }
+            }
+
+            return merged;
+        }
+
         function startRealtimeSync() {
             if (!firebaseReady || !db || unsubscribeListener) return;
 
             unsubscribeListener = db.collection('weeks').onSnapshot(snapshot => {
-                // Ignorar cambios propios (dentro de 2 segundos de guardar)
-                if (Date.now() - lastSaveTime < 2000) return;
+                // Ignorar cambios propios (dentro de 1 segundo de guardar)
+                if (Date.now() - lastSaveTime < 1000) return;
 
                 let hasChanges = false;
+                let updatedCurrentWeek = false;
 
                 snapshot.docChanges().forEach(change => {
+                    // Verificar si es nuestro propio guardado
+                    const weekData = change.doc.data();
+                    if (weekData.lastSaveId === localSaveId && Date.now() - lastSaveTime < 3000) {
+                        return; // Ignorar nuestro propio guardado
+                    }
+
                     if (change.type === 'modified' || change.type === 'added') {
-                        const weekData = change.doc.data();
                         const localWeek = weeks[change.doc.id];
 
-                        // Solo actualizar si el de la nube es más reciente
-                        if (!localWeek || (weekData.updatedAt > (localWeek.updatedAt || 0))) {
+                        if (!localWeek) {
                             weeks[change.doc.id] = {
                                 id: change.doc.id,
                                 ...weekData
                             };
                             hasChanges = true;
+                        } else {
+                            // Merge inteligente
+                            const merged = mergeWeekData(localWeek, weekData, change.doc.id);
+
+                            // Verificar si hay cambios reales
+                            const itemsChanged = JSON.stringify(merged.items) !== JSON.stringify(localWeek.items);
+                            if (itemsChanged) {
+                                weeks[change.doc.id] = merged;
+                                hasChanges = true;
+                                if (change.doc.id === currentWeekId) {
+                                    updatedCurrentWeek = true;
+                                }
+                            }
                         }
                     } else if (change.type === 'removed') {
                         if (weeks[change.doc.id]) {
@@ -2217,12 +2562,12 @@
                     renderWeeksDropdown();
 
                     // Si la semana actual fue modificada, recargar
-                    if (currentWeekId && weeks[currentWeekId]) {
+                    if (updatedCurrentWeek && currentWeekId && weeks[currentWeekId]) {
                         items = weeks[currentWeekId].items || {};
                         itemIdCounter = weeks[currentWeekId].itemIdCounter || 0;
                         renderList();
                         updateTotals();
-                        showToast('Lista actualizada', 'info');
+                        showToast('Lista sincronizada', 'info');
                     }
 
                     updateSyncStatus('synced', 'Sincronizado');
@@ -2240,16 +2585,20 @@
             if (!week) return;
 
             updateSyncStatus('syncing', 'Guardando...');
-            lastSaveTime = Date.now(); // Marcar que estamos guardando
+            lastSaveTime = Date.now();
+            localSaveId = 'save_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
 
             try {
                 await db.collection('weeks').doc(weekId).set({
                     name: week.name,
                     createdAt: week.createdAt,
-                    updatedAt: week.updatedAt || Date.now(),
+                    updatedAt: Date.now(),
                     items: week.items || {},
                     itemIdCounter: week.itemIdCounter || 0,
-                    currentList: week.currentList || 'general'
+                    currentList: week.currentList || 'general',
+                    source: week.source || null,
+                    sourceData: week.sourceData || null,
+                    lastSaveId: localSaveId
                 });
                 updateSyncStatus('synced', 'Guardado');
             } catch (error) {
@@ -2274,6 +2623,49 @@
 
             statusEl.className = 'sync-status ' + status;
             textEl.textContent = text;
+        }
+
+        async function forceSync() {
+            if (!firebaseReady || !db) {
+                showToast('Sin conexión a la nube', 'warning');
+                return;
+            }
+
+            updateSyncStatus('syncing', 'Sincronizando...');
+            const syncBtn = document.getElementById('syncBtn');
+            if (syncBtn) {
+                syncBtn.style.animation = 'spin 1s linear infinite';
+            }
+
+            try {
+                // Primero guardar cambios locales
+                if (currentWeekId) {
+                    await saveWeekToCloud(currentWeekId);
+                }
+
+                // Luego obtener cambios de la nube
+                await syncFromFirestore();
+
+                // Recargar datos de la semana actual
+                if (currentWeekId && weeks[currentWeekId]) {
+                    items = weeks[currentWeekId].items || {};
+                    itemIdCounter = weeks[currentWeekId].itemIdCounter || 0;
+                    renderList();
+                    updateTotals();
+                }
+
+                renderWeeksDropdown();
+                updateSyncStatus('synced', 'Sincronizado');
+                showToast('Lista sincronizada', 'success');
+            } catch (error) {
+                console.error('Error en sincronización:', error);
+                updateSyncStatus('error', 'Error');
+                showToast('Error al sincronizar', 'error');
+            } finally {
+                if (syncBtn) {
+                    syncBtn.style.animation = '';
+                }
+            }
         }
 
         // ==================== WEEKS MANAGEMENT ====================
@@ -2341,7 +2733,18 @@
 
             dropdown.innerHTML = weekIds.map(id => {
                 const week = weeks[id];
-                return `<option value="${id}" ${id === currentWeekId ? 'selected' : ''}>${week.name}</option>`;
+                let displayName = week.name;
+
+                // Agregar fechas si están disponibles
+                if (week.sourceData && week.sourceData.fechas) {
+                    displayName += ` (${week.sourceData.fechas})`;
+                } else if (week.createdAt) {
+                    const date = new Date(week.createdAt);
+                    const dateStr = date.toLocaleDateString('es-AR', { day: 'numeric', month: 'short' });
+                    displayName += ` - ${dateStr}`;
+                }
+
+                return `<option value="${id}" ${id === currentWeekId ? 'selected' : ''}>${displayName}</option>`;
             }).join('');
         }
 
@@ -2460,355 +2863,347 @@
         }
 
         // ==================== IMPORT FROM PAULINA ====================
-        let pendingImportData = null; // Datos pendientes de importar
+        let pendingPaulinaData = null;  // Datos del menú cargado pendiente de importar
+
+        // ============ Modal de importación ============
+
+        let selectedImportMode = null; // 'general', 'veggie', or 'platos'
 
         function openImportModal() {
             document.getElementById('importModal').classList.add('active');
             document.getElementById('importJsonInput').value = '';
-            document.getElementById('scrapeWeekNumber').value = '';
-            document.getElementById('scraperStatus').className = 'scraper-status';
-            document.getElementById('importPreview').style.display = 'none';
-            pendingImportData = null;
-
-            // Cargar semanas disponibles
-            loadAvailableWeeks();
-
-            // Mostrar tab de disponibles
-            switchImportTab('disponibles');
+            document.getElementById('importStep1').style.display = 'block';
+            document.getElementById('importStep2').style.display = 'none';
+            document.getElementById('importStep3').style.display = 'none';
+            pendingPaulinaData = null;
+            selectedImportMode = null;
         }
 
         function closeImportModal() {
             document.getElementById('importModal').classList.remove('active');
-            pendingImportData = null;
+            pendingPaulinaData = null;
+            selectedImportMode = null;
         }
 
-        function switchImportTab(tabName) {
-            // Actualizar tabs
-            document.querySelectorAll('.import-tab').forEach(t => t.classList.remove('active'));
-            event.currentTarget.classList.add('active');
+        // Crear lista vacía desde el modal unificado
+        async function createEmptyList() {
+            const now = new Date();
+            const weekNum = Math.ceil((now - new Date(now.getFullYear(), 0, 1)) / (7 * 24 * 60 * 60 * 1000));
+            const name = `Semana ${weekNum}`;
 
-            // Actualizar contenido
-            document.querySelectorAll('.import-content').forEach(c => c.classList.remove('active'));
-            document.getElementById('tab' + tabName.charAt(0).toUpperCase() + tabName.slice(1)).classList.add('active');
+            const weekId = createWeekData(name);
+            await saveWeekToCloud(weekId);
 
-            // Ocultar preview al cambiar de tab
-            document.getElementById('importPreview').style.display = 'none';
+            closeImportModal();
+            renderWeeksDropdown();
+            selectWeek(weekId);
+
+            showToast('Lista vacía creada', 'success');
         }
 
-        async function loadAvailableWeeks() {
-            const container = document.getElementById('availableWeeksList');
-            container.innerHTML = '<div class="loading">Cargando semanas...</div>';
+        function showStep(step) {
+            document.getElementById('importStep1').style.display = step === 1 ? 'block' : 'none';
+            document.getElementById('importStep2').style.display = step === 2 ? 'block' : 'none';
+            document.getElementById('importStep3').style.display = step === 3 ? 'block' : 'none';
+        }
+
+        function backToStep1() { showStep(1); }
+        function backToStep2() { showStep(2); }
+
+        // ---- Paso 2: Buscar y mostrar semanas disponibles ----
+
+        async function browseAvailableWeeks() {
+            showStep(2);
+            document.getElementById('availableWeeksLoading').style.display = 'block';
+            document.getElementById('availableWeeksList').innerHTML = '';
+            document.getElementById('availableWeeksEmpty').style.display = 'none';
 
             if (!firebaseReady || !db) {
-                container.innerHTML = '<div class="no-weeks">Firebase no disponible</div>';
+                document.getElementById('availableWeeksLoading').style.display = 'none';
+                document.getElementById('availableWeeksEmpty').style.display = 'block';
                 return;
             }
 
             try {
                 const snapshot = await db.collection('paulina_menus').orderBy('semana', 'desc').get();
+                document.getElementById('availableWeeksLoading').style.display = 'none';
 
                 if (snapshot.empty) {
-                    container.innerHTML = `
-                        <div class="no-weeks">
-                            No hay semanas disponibles
-                            <button class="modal-btn primary" onclick="switchImportTab('scrapear')">🔄 Scrapear una</button>
-                        </div>`;
+                    document.getElementById('availableWeeksEmpty').style.display = 'block';
                     return;
                 }
 
-                let html = '';
+                const listEl = document.getElementById('availableWeeksList');
+                listEl.innerHTML = '';
+
                 snapshot.forEach(doc => {
                     const data = doc.data();
-                    const totalItems = countItems(data);
-                    html += `
-                        <div class="week-option" onclick="previewWeek('${doc.id}')">
-                            <div class="week-info">
-                                <div class="week-name">${data.titulo || 'Semana ' + data.semana}</div>
-                                <div class="week-dates">${data.fechas || ''}</div>
-                            </div>
-                            <div class="week-count">${totalItems} items</div>
-                        </div>
+                    const generalCount = data.general
+                        ? Object.values(data.general).reduce((s, items) => s + items.length, 0)
+                        : 0;
+                    const veggieCount = data.veggie
+                        ? Object.values(data.veggie).reduce((s, items) => s + items.length, 0)
+                        : 0;
+                    const platosCount = data.platos ? data.platos.length : 0;
+                    const hasSeparateVeggie = veggieCount > 0 && JSON.stringify(data.veggie) !== JSON.stringify(data.general);
+
+                    let badges = '';
+                    if (generalCount > 0) badges += `<span style="background: var(--primary); color: white; padding: 2px 8px; border-radius: 8px; font-size: 0.7rem;">General: ${generalCount}</span> `;
+                    if (hasSeparateVeggie) badges += `<span style="background: #4caf50; color: white; padding: 2px 8px; border-radius: 8px; font-size: 0.7rem;">Veggie: ${veggieCount}</span> `;
+                    if (platosCount > 0) badges += `<span style="background: #ff9800; color: white; padding: 2px 8px; border-radius: 8px; font-size: 0.7rem;">${platosCount} platos</span>`;
+
+                    const card = document.createElement('div');
+                    card.style.cssText = 'padding: 14px 12px; border: 2px solid var(--border); border-radius: 12px; margin-bottom: 8px; cursor: pointer; transition: border-color 0.15s, background 0.15s;';
+                    card.onmouseenter = () => card.style.borderColor = 'var(--primary)';
+                    card.onmouseleave = () => card.style.borderColor = 'var(--border)';
+                    card.onclick = () => selectWeekToImport(data);
+                    card.innerHTML = `
+                        <div style="font-weight: 600; font-size: 0.95rem;">${data.titulo || 'Semana ' + data.semana}</div>
+                        ${data.fechas ? `<div style="font-size: 0.8rem; color: var(--text-light); margin-top: 2px;">${data.fechas}</div>` : ''}
+                        <div style="margin-top: 8px; display: flex; gap: 4px; flex-wrap: wrap;">${badges}</div>
                     `;
+                    listEl.appendChild(card);
                 });
-
-                container.innerHTML = html;
             } catch (error) {
-                console.error('Error cargando semanas:', error);
-                container.innerHTML = '<div class="no-weeks">Error al cargar</div>';
+                console.error('Error buscando semanas:', error);
+                document.getElementById('availableWeeksLoading').style.display = 'none';
+                showToast('Error al buscar semanas', 'error');
             }
         }
 
-        function countItems(data) {
-            let count = 0;
-            if (data.general) {
-                for (const items of Object.values(data.general)) {
-                    count += items.length;
-                }
+        // ---- Paso 3: Elegir qué importar de la semana seleccionada ----
+
+        function selectWeekToImport(data) {
+            pendingPaulinaData = data;
+            showStep(3);
+
+            document.getElementById('menuTitle').textContent = data.titulo || 'Menú';
+            document.getElementById('menuDates').textContent = data.fechas ? `${data.fechas}` : '';
+
+            const tienePlatos = data.platos && data.platos.length > 0;
+            const tieneGeneral = data.general && Object.keys(data.general).length > 0;
+            const tieneVeggie = data.veggie && Object.keys(data.veggie).length > 0;
+            const hasSeparateVeggie = tieneVeggie && JSON.stringify(data.veggie) !== JSON.stringify(data.general);
+
+            const generalCount = tieneGeneral
+                ? Object.values(data.general).reduce((s, items) => s + items.length, 0) : 0;
+            const veggieCount = hasSeparateVeggie
+                ? Object.values(data.veggie).reduce((s, items) => s + items.length, 0) : 0;
+
+            // Construir opciones de importación
+            const optionsEl = document.getElementById('importOptions');
+            let html = '<div style="font-size: 0.9rem; color: var(--text-light); margin-bottom: 10px;">Elegí qué lista importar:</div>';
+
+            if (tieneGeneral) {
+                html += `
+                    <label style="display: flex; align-items: center; gap: 12px; padding: 14px 12px; border: 2px solid var(--border); border-radius: 12px; margin-bottom: 8px; cursor: pointer;" id="optGeneral" onclick="selectImportMode('general')">
+                        <input type="radio" name="importMode" value="general" style="width: 20px; height: 20px; accent-color: var(--primary);" checked>
+                        <div style="flex: 1;">
+                            <div style="font-weight: 600;">Lista General completa</div>
+                            <div style="font-size: 0.8rem; color: var(--text-light); margin-top: 2px;">Todos los menús de la semana (${generalCount} productos)</div>
+                        </div>
+                    </label>
+                `;
             }
-            return count;
+
+            if (hasSeparateVeggie) {
+                html += `
+                    <label style="display: flex; align-items: center; gap: 12px; padding: 14px 12px; border: 2px solid var(--border); border-radius: 12px; margin-bottom: 8px; cursor: pointer;" id="optVeggie" onclick="selectImportMode('veggie')">
+                        <input type="radio" name="importMode" value="veggie" style="width: 20px; height: 20px; accent-color: #4caf50;">
+                        <div style="flex: 1;">
+                            <div style="font-weight: 600;">Lista Vegetariana</div>
+                            <div style="font-size: 0.8rem; color: var(--text-light); margin-top: 2px;">Versión sin carnes (${veggieCount} productos)</div>
+                        </div>
+                    </label>
+                `;
+            }
+
+            if (tienePlatos) {
+                html += `
+                    <label style="display: flex; align-items: center; gap: 12px; padding: 14px 12px; border: 2px solid var(--border); border-radius: 12px; margin-bottom: 8px; cursor: pointer;" id="optPlatos" onclick="selectImportMode('platos')">
+                        <input type="radio" name="importMode" value="platos" style="width: 20px; height: 20px; accent-color: #ff9800;" ${!tieneGeneral ? 'checked' : ''}>
+                        <div style="flex: 1;">
+                            <div style="font-weight: 600;">Elegir platos individuales</div>
+                            <div style="font-size: 0.8rem; color: var(--text-light); margin-top: 2px;">Seleccioná qué platos querés (${data.platos.length} disponibles)</div>
+                        </div>
+                    </label>
+                `;
+            }
+
+            if (!tieneGeneral && !tienePlatos) {
+                html = '<div style="color: var(--danger); text-align: center; padding: 16px;">No se encontraron datos importables en esta semana.</div>';
+            }
+
+            optionsEl.innerHTML = html;
+
+            // Default selection
+            selectedImportMode = tieneGeneral ? 'general' : (tienePlatos ? 'platos' : null);
+
+            // Construir lista de platos si hay
+            const platosSection = document.getElementById('platosSection');
+            if (tienePlatos) {
+                renderPlatosCheckboxes(data);
+                platosSection.style.display = selectedImportMode === 'platos' ? 'block' : 'none';
+            } else {
+                platosSection.style.display = 'none';
+            }
         }
 
-        async function previewWeek(docId) {
-            try {
-                const doc = await db.collection('paulina_menus').doc(docId).get();
-                if (doc.exists) {
-                    showPreviewForData(doc.data());
-                }
-            } catch (error) {
-                showToast('Error al cargar preview', 'error');
-            }
+        function selectImportMode(mode) {
+            selectedImportMode = mode;
+            const platosSection = document.getElementById('platosSection');
+            platosSection.style.display = mode === 'platos' ? 'block' : 'none';
         }
 
-        function showPreviewForData(data) {
-            pendingImportData = data;
+        function renderPlatosCheckboxes(data) {
+            const container = document.getElementById('platosContainer');
+            const typeInfo = document.getElementById('menuTypeInfo');
+            container.innerHTML = '';
 
-            const previewDiv = document.getElementById('importPreview');
-            const headerDiv = document.getElementById('previewHeader');
-            const categoriesDiv = document.getElementById('previewCategories');
-
-            // Header
-            headerDiv.innerHTML = `
-                <div class="title">${data.titulo || 'Semana ' + data.semana}</div>
-                <div class="dates">${data.fechas || ''}</div>
+            typeInfo.innerHTML = `
+                <div style="color: var(--primary);">Seleccioná los platos que querés incluir:</div>
             `;
 
-            // Categories
-            let catHtml = '';
-            if (data.general) {
-                for (const [catName, items] of Object.entries(data.general)) {
-                    const displayItems = items.slice(0, 5).join(', ');
-                    const more = items.length > 5 ? ` +${items.length - 5} más` : '';
-                    catHtml += `
-                        <div class="preview-category">
-                            <div class="cat-name">${catName} (${items.length})</div>
-                            <div class="cat-items">${displayItems}${more}</div>
-                        </div>
-                    `;
-                }
-            }
-            categoriesDiv.innerHTML = catHtml;
-
-            previewDiv.style.display = 'block';
+            data.platos.forEach((plato, index) => {
+                const ingredientCount = plato.ingredientes ? plato.ingredientes.length : 0;
+                const platoDiv = document.createElement('div');
+                platoDiv.style.cssText = 'display: flex; align-items: center; padding: 14px 12px; border-bottom: 1px solid var(--border); gap: 12px; cursor: pointer; transition: background 0.15s;';
+                platoDiv.onclick = function(e) {
+                    if (e.target.tagName !== 'INPUT') {
+                        const cb = this.querySelector('input[type="checkbox"]');
+                        cb.checked = !cb.checked;
+                    }
+                };
+                platoDiv.innerHTML = `
+                    <input type="checkbox" id="plato_${index}" checked style="width: 22px; height: 22px; cursor: pointer; accent-color: var(--primary);">
+                    <label for="plato_${index}" style="flex: 1; cursor: pointer; pointer-events: none;">
+                        <div style="font-weight: 600; font-size: 0.95rem;">${index + 1}. ${plato.nombre || 'Plato ' + (index + 1)}</div>
+                        <div style="font-size: 0.8rem; color: var(--text-light); margin-top: 2px;">${ingredientCount} ingredientes</div>
+                    </label>
+                `;
+                container.appendChild(platoDiv);
+            });
         }
 
-        function cancelPreview() {
-            document.getElementById('importPreview').style.display = 'none';
-            pendingImportData = null;
+        function selectAllPlatos() {
+            document.querySelectorAll('#platosContainer input[type="checkbox"]').forEach(cb => cb.checked = true);
         }
 
-        async function confirmImport() {
-            if (!pendingImportData) {
-                showToast('No hay datos para importar', 'error');
-                return;
-            }
-
-            await doImport(pendingImportData);
+        function selectNonePlatos() {
+            document.querySelectorAll('#platosContainer input[type="checkbox"]').forEach(cb => cb.checked = false);
         }
 
-        function importFromJson() {
+        // ---- Importar desde JSON pegado ----
+
+        function loadFromJson() {
             const jsonInput = document.getElementById('importJsonInput').value.trim();
             if (!jsonInput) {
-                showToast('Pegá el JSON primero', 'warning');
+                showToast('Pegá el JSON del scraper', 'warning');
                 return;
             }
-
             try {
                 const data = JSON.parse(jsonInput);
-                showPreviewForData(data);
+                pendingPaulinaData = data;
+                selectWeekToImport(data);
             } catch (e) {
                 showToast('JSON inválido', 'error');
             }
         }
 
-        async function scrapeFromWeb() {
-            const weekNumber = document.getElementById('scrapeWeekNumber').value;
-            if (!weekNumber) {
-                showToast('Ingresá el número de semana', 'warning');
+        // ---- Ejecutar la importación según el modo elegido ----
+
+        async function executeImport() {
+            if (!pendingPaulinaData) {
+                showToast('No hay datos cargados', 'error');
                 return;
             }
 
-            const statusDiv = document.getElementById('scraperStatus');
-            statusDiv.className = 'scraper-status loading';
-            statusDiv.textContent = '🔄 Scrapeando semana ' + weekNumber + '...';
+            const data = pendingPaulinaData;
+            let itemsToImport = { general: {}, veggie: {} };
 
-            try {
-                // Usar un proxy CORS para poder hacer fetch desde el navegador
-                const proxyUrl = 'https://api.allorigins.win/raw?url=';
-                const targetUrl = `https://almacen.paulinacocina.net/menu-semana-${weekNumber}`;
+            if (selectedImportMode === 'general') {
+                itemsToImport.general = data.general;
+            } else if (selectedImportMode === 'veggie') {
+                itemsToImport.veggie = data.veggie;
+            } else if (selectedImportMode === 'platos') {
+                // Obtener platos seleccionados
+                const selectedIndices = [];
+                document.querySelectorAll('#platosContainer input[type="checkbox"]:checked').forEach(cb => {
+                    const index = parseInt(cb.id.replace('plato_', ''));
+                    if (!isNaN(index)) selectedIndices.push(index);
+                });
 
-                const response = await fetch(proxyUrl + encodeURIComponent(targetUrl));
-
-                if (!response.ok) {
-                    throw new Error('No se pudo acceder a la página');
-                }
-
-                const html = await response.text();
-                const data = parseHtmlToData(html, weekNumber);
-
-                if (!data || !data.general || Object.keys(data.general).length === 0) {
-                    statusDiv.className = 'scraper-status error';
-                    statusDiv.textContent = '❌ No se encontraron items. La semana puede no existir.';
+                if (selectedIndices.length === 0) {
+                    showToast('Seleccioná al menos un plato', 'warning');
                     return;
                 }
 
-                statusDiv.className = 'scraper-status success';
-                statusDiv.textContent = '✅ Scrapeado! ' + countItems(data) + ' items encontrados';
-
-                // Mostrar preview
-                showPreviewForData(data);
-
-                // Opcionalmente guardar en Firebase para futuro uso
-                if (firebaseReady && db) {
-                    await db.collection('paulina_menus').doc('semana_' + weekNumber).set({
-                        ...data,
-                        uploadedAt: new Date().toISOString()
-                    });
-                }
-
-            } catch (error) {
-                console.error('Error scrapeando:', error);
-                statusDiv.className = 'scraper-status error';
-                statusDiv.textContent = '❌ Error: ' + error.message;
-            }
-        }
-
-        function parseHtmlToData(html, weekNumber) {
-            // Crear un DOM parser
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(html, 'text/html');
-
-            // Extraer título
-            const titleTag = doc.querySelector('title');
-            const titulo = titleTag ? titleTag.textContent.split(' - ')[0].trim() : 'Semana ' + weekNumber;
-
-            // Extraer fechas
-            let fechas = '';
-            for (const heading of doc.querySelectorAll('h1, h2, h3')) {
-                const texto = heading.textContent;
-                const match = texto.match(/(\d{1,2})\s*(?:al|a)\s*(\d{1,2})\s*(?:de\s+)?(\w+)/i);
-                if (match) {
-                    fechas = `${match[1]} al ${match[2]} de ${match[3].toLowerCase()}`;
-                    break;
-                }
-            }
-
-            // Extraer items
-            const categorias = {
-                'Supermercado 🏪': [],
-                'Carnes 🥩': [],
-                'Dietética 🥗': [],
-                'Verdulería 🥬': [],
-                'Yapa ⭐': [],
-                'Comodín 👑': []
-            };
-
-            const categoriasMap = {
-                'supermercado': 'Supermercado 🏪',
-                'carne': 'Carnes 🥩',
-                'dietética': 'Dietética 🥗',
-                'dietetica': 'Dietética 🥗',
-                'verdulería': 'Verdulería 🥬',
-                'verduleria': 'Verdulería 🥬',
-                'yapa': 'Yapa ⭐',
-                'comodín': 'Comodín 👑',
-                'comodin': 'Comodín 👑'
-            };
-
-            let categoriaActual = 'Supermercado 🏪';
-            const itemsVistos = new Set();
-
-            // Buscar labels (checkboxes con items)
-            const labels = doc.querySelectorAll('label');
-            for (const label of labels) {
-                let texto = label.textContent.trim();
-                texto = texto.replace(/^[\[\]✓\s]+/, '').trim();
-
-                if (!texto || texto.length < 2) continue;
-
-                // Verificar si es nombre de categoría
-                const textoLower = texto.toLowerCase();
-                let esCategoria = false;
-                for (const [keyword, catName] of Object.entries(categoriasMap)) {
-                    if (textoLower.includes(keyword) && texto.length < 30) {
-                        categoriaActual = catName;
-                        esCategoria = true;
-                        break;
+                const combinedIngredients = [];
+                selectedIndices.forEach(index => {
+                    const plato = data.platos[index];
+                    if (plato && plato.ingredientes) {
+                        combinedIngredients.push(...plato.ingredientes);
                     }
-                }
-
-                if (esCategoria) continue;
-
-                // Agregar item si no es duplicado
-                const textoNorm = texto.toLowerCase();
-                if (!itemsVistos.has(textoNorm)) {
-                    itemsVistos.add(textoNorm);
-                    if (categorias[categoriaActual]) {
-                        categorias[categoriaActual].push(texto);
-                    }
-                }
-            }
-
-            // Limpiar categorías vacías
-            const general = {};
-            for (const [cat, items] of Object.entries(categorias)) {
-                if (items.length > 0) {
-                    general[cat] = items;
-                }
-            }
-
-            return {
-                titulo,
-                fechas,
-                semana: parseInt(weekNumber),
-                general,
-                veggie: general, // Por ahora mismo contenido
-                generado: new Date().toISOString()
-            };
-        }
-
-        async function doImport(data) {
-            if (!data || (!data.general && !data.veggie)) {
-                showToast('Datos inválidos', 'error');
+                });
+                itemsToImport.general = { 'Supermercado 🏪': combinedIngredients };
+            } else {
+                showToast('Seleccioná una opción de importación', 'warning');
                 return;
             }
 
-            // Crear nueva semana con los datos importados
+            await createWeekFromImport(data, itemsToImport);
+        }
+
+        // ---- Crear semana desde datos importados ----
+
+        async function createWeekFromImport(data, itemsToImport) {
             const weekName = data.titulo || `Semana ${data.semana || 'Importada'}`;
             const weekId = 'week_' + Date.now();
 
             let counter = 0;
+            let duplicatesSkipped = 0;
+            let totalProcessed = 0;
             const newItems = {};
+            const seenItems = { general: new Set(), veggie: new Set() };
+
+            function addItemIfNotDuplicate(product, categoryName, listType) {
+                totalProcessed++;
+                const normalized = normalizeIngredient(product);
+                console.log(`[Dedup] "${product}" → "${normalized}"`);
+                if (!normalized || seenItems[listType].has(normalized)) {
+                    duplicatesSkipped++;
+                    console.log(`  → DUPLICADO (ya existe en ${listType})`);
+                    return false;
+                }
+                seenItems[listType].add(normalized);
+                newItems[counter++] = {
+                    name: product,
+                    category: categoryName,
+                    bought: false,
+                    price: 0,
+                    isExtra: false,
+                    listType: listType,
+                    itemUpdatedAt: Date.now()
+                };
+                return true;
+            }
 
             // Procesar lista general
-            if (data.general) {
-                for (const [category, products] of Object.entries(data.general)) {
+            if (itemsToImport.general) {
+                for (const [category, products] of Object.entries(itemsToImport.general)) {
                     const categoryName = mapCategoryName(category);
                     for (const product of products) {
-                        newItems[counter++] = {
-                            name: product,
-                            category: categoryName,
-                            bought: false,
-                            price: 0,
-                            isExtra: false,
-                            listType: 'general'
-                        };
+                        addItemIfNotDuplicate(product, categoryName, 'general');
                     }
                 }
             }
 
             // Procesar lista veggie
-            if (data.veggie) {
-                for (const [category, products] of Object.entries(data.veggie)) {
+            if (itemsToImport.veggie) {
+                for (const [category, products] of Object.entries(itemsToImport.veggie)) {
                     const categoryName = mapCategoryName(category);
                     for (const product of products) {
-                        newItems[counter++] = {
-                            name: product,
-                            category: categoryName,
-                            bought: false,
-                            price: 0,
-                            isExtra: false,
-                            listType: 'veggie'
-                        };
+                        addItemIfNotDuplicate(product, categoryName, 'veggie');
                     }
                 }
             }
@@ -2820,10 +3215,10 @@
                 updatedAt: Date.now(),
                 items: newItems,
                 itemIdCounter: counter,
-                currentList: 'general',
+                currentList: selectedImportMode === 'veggie' ? 'veggie' : 'general',
                 source: 'paulina',
                 sourceData: {
-                    semana: data.semana,
+                    semana: data.semana || '',
                     fechas: data.fechas || ''
                 }
             };
@@ -2834,7 +3229,17 @@
             selectWeek(weekId);
 
             const totalItems = Object.keys(newItems).length;
-            showToast(`Importados ${totalItems} productos`, 'success');
+            let msg = `${totalItems} productos importados`;
+            if (duplicatesSkipped > 0) {
+                msg += ` (${duplicatesSkipped} duplicados eliminados)`;
+            }
+            console.log(`[Import] Total procesados: ${totalProcessed}, Importados: ${totalItems}, Duplicados: ${duplicatesSkipped}`);
+            showToast(msg, 'success');
+        }
+
+        // Mantener compatibilidad con importación directa (legacy)
+        async function importFromPaulina() {
+            openImportModal();
         }
 
         function mapCategoryName(category) {
