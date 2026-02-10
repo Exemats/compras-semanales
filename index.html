@@ -1137,13 +1137,24 @@
             <!-- Paso 3: Seleccionar qué importar de la semana elegida -->
             <div id="importStep3" style="display: none;">
                 <h3 style="margin-bottom: 4px; font-size: 1.1rem;" id="menuTitle">Menú</h3>
-                <p style="font-size: 0.8rem; color: var(--text-light); margin-bottom: 16px;" id="menuDates"></p>
+                <p style="font-size: 0.8rem; color: var(--text-light); margin-bottom: 12px;" id="menuDates"></p>
 
-                <!-- Opciones de importación -->
+                <!-- Selección de días (si hay recetas por día) -->
+                <div id="diasSection" style="display: none;">
+                    <div style="font-size: 0.9rem; color: var(--text-light); margin-bottom: 8px;">Elegí qué días incluir:</div>
+                    <div id="diasContainer" style="max-height: 200px; overflow-y: auto; margin-bottom: 8px; border: 1px solid var(--border); border-radius: 10px;">
+                    </div>
+                    <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+                        <button class="modal-btn secondary" style="flex: 1; padding: 8px; font-size: 0.85rem;" onclick="selectAllDias()">Todos</button>
+                        <button class="modal-btn secondary" style="flex: 1; padding: 8px; font-size: 0.85rem;" onclick="selectNoneDias()">Ninguno</button>
+                    </div>
+                </div>
+
+                <!-- Opciones de tipo de lista -->
                 <div id="importOptions" style="margin-bottom: 16px;">
                 </div>
 
-                <!-- Lista de platos seleccionables (solo si hay platos) -->
+                <!-- Lista de platos seleccionables (solo si hay platos y no hay recetas por día) -->
                 <div id="platosSection" style="display: none;">
                     <div id="menuTypeInfo" style="background: var(--bg); padding: 12px; border-radius: 10px; margin-bottom: 12px; font-size: 0.9rem;">
                     </div>
@@ -2705,12 +2716,14 @@
                         ? Object.values(data.veggie).reduce((s, items) => s + items.length, 0)
                         : 0;
                     const platosCount = data.platos ? data.platos.length : 0;
+                    const recetasCount = data.recetas ? Object.keys(data.recetas).length : 0;
                     const hasSeparateVeggie = veggieCount > 0 && JSON.stringify(data.veggie) !== JSON.stringify(data.general);
 
                     let badges = '';
                     if (generalCount > 0) badges += `<span style="background: var(--primary); color: white; padding: 2px 8px; border-radius: 8px; font-size: 0.7rem;">General: ${generalCount}</span> `;
                     if (hasSeparateVeggie) badges += `<span style="background: #4caf50; color: white; padding: 2px 8px; border-radius: 8px; font-size: 0.7rem;">Veggie: ${veggieCount}</span> `;
-                    if (platosCount > 0) badges += `<span style="background: #ff9800; color: white; padding: 2px 8px; border-radius: 8px; font-size: 0.7rem;">${platosCount} platos</span>`;
+                    if (recetasCount > 0) badges += `<span style="background: #2196f3; color: white; padding: 2px 8px; border-radius: 8px; font-size: 0.7rem;">${recetasCount} días</span> `;
+                    if (platosCount > 0 && recetasCount === 0) badges += `<span style="background: #ff9800; color: white; padding: 2px 8px; border-radius: 8px; font-size: 0.7rem;">${platosCount} platos</span>`;
 
                     const card = document.createElement('div');
                     card.style.cssText = 'padding: 14px 12px; border: 2px solid var(--border); border-radius: 12px; margin-bottom: 8px; cursor: pointer; transition: border-color 0.15s, background 0.15s;';
@@ -2733,6 +2746,11 @@
 
         // ---- Paso 3: Elegir qué importar de la semana seleccionada ----
 
+        const DIAS_EMOJIS = {
+            'Lunes': '📅', 'Martes': '📅', 'Miércoles': '📅',
+            'Jueves': '📅', 'Viernes': '📅', 'Sábado': '📅', 'Domingo': '📅'
+        };
+
         function selectWeekToImport(data) {
             pendingPaulinaData = data;
             showStep(3);
@@ -2740,6 +2758,7 @@
             document.getElementById('menuTitle').textContent = data.titulo || 'Menú';
             document.getElementById('menuDates').textContent = data.fechas ? `${data.fechas}` : '';
 
+            const tieneRecetas = data.recetas && Object.keys(data.recetas).length > 0;
             const tienePlatos = data.platos && data.platos.length > 0;
             const tieneGeneral = data.general && Object.keys(data.general).length > 0;
             const tieneVeggie = data.veggie && Object.keys(data.veggie).length > 0;
@@ -2750,17 +2769,26 @@
             const veggieCount = hasSeparateVeggie
                 ? Object.values(data.veggie).reduce((s, items) => s + items.length, 0) : 0;
 
-            // Construir opciones de importación
+            // Mostrar selección de días si hay recetas por día
+            const diasSection = document.getElementById('diasSection');
+            if (tieneRecetas) {
+                renderDiasCheckboxes(data.recetas);
+                diasSection.style.display = 'block';
+            } else {
+                diasSection.style.display = 'none';
+            }
+
+            // Construir opciones de tipo de lista
             const optionsEl = document.getElementById('importOptions');
-            let html = '<div style="font-size: 0.9rem; color: var(--text-light); margin-bottom: 10px;">Elegí qué lista importar:</div>';
+            let html = '<div style="font-size: 0.9rem; color: var(--text-light); margin-bottom: 10px;">Tipo de lista:</div>';
 
             if (tieneGeneral) {
                 html += `
-                    <label style="display: flex; align-items: center; gap: 12px; padding: 14px 12px; border: 2px solid var(--border); border-radius: 12px; margin-bottom: 8px; cursor: pointer;" id="optGeneral" onclick="selectImportMode('general')">
+                    <label style="display: flex; align-items: center; gap: 12px; padding: 12px; border: 2px solid var(--border); border-radius: 12px; margin-bottom: 8px; cursor: pointer;" onclick="selectImportMode('general')">
                         <input type="radio" name="importMode" value="general" style="width: 20px; height: 20px; accent-color: var(--primary);" checked>
                         <div style="flex: 1;">
-                            <div style="font-weight: 600;">Lista General completa</div>
-                            <div style="font-size: 0.8rem; color: var(--text-light); margin-top: 2px;">Todos los menús de la semana (${generalCount} productos)</div>
+                            <div style="font-weight: 600;">Lista General</div>
+                            <div style="font-size: 0.8rem; color: var(--text-light); margin-top: 2px;">${tieneRecetas ? 'Ingredientes de los días seleccionados' : `Todos los menús (${generalCount} productos)`}</div>
                         </div>
                     </label>
                 `;
@@ -2768,7 +2796,7 @@
 
             if (hasSeparateVeggie) {
                 html += `
-                    <label style="display: flex; align-items: center; gap: 12px; padding: 14px 12px; border: 2px solid var(--border); border-radius: 12px; margin-bottom: 8px; cursor: pointer;" id="optVeggie" onclick="selectImportMode('veggie')">
+                    <label style="display: flex; align-items: center; gap: 12px; padding: 12px; border: 2px solid var(--border); border-radius: 12px; margin-bottom: 8px; cursor: pointer;" onclick="selectImportMode('veggie')">
                         <input type="radio" name="importMode" value="veggie" style="width: 20px; height: 20px; accent-color: #4caf50;">
                         <div style="flex: 1;">
                             <div style="font-weight: 600;">Lista Vegetariana</div>
@@ -2778,9 +2806,10 @@
                 `;
             }
 
-            if (tienePlatos) {
+            // Solo mostrar opción de platos si hay platos Y no hay recetas por día
+            if (tienePlatos && !tieneRecetas) {
                 html += `
-                    <label style="display: flex; align-items: center; gap: 12px; padding: 14px 12px; border: 2px solid var(--border); border-radius: 12px; margin-bottom: 8px; cursor: pointer;" id="optPlatos" onclick="selectImportMode('platos')">
+                    <label style="display: flex; align-items: center; gap: 12px; padding: 12px; border: 2px solid var(--border); border-radius: 12px; margin-bottom: 8px; cursor: pointer;" onclick="selectImportMode('platos')">
                         <input type="radio" name="importMode" value="platos" style="width: 20px; height: 20px; accent-color: #ff9800;" ${!tieneGeneral ? 'checked' : ''}>
                         <div style="flex: 1;">
                             <div style="font-weight: 600;">Elegir platos individuales</div>
@@ -2790,7 +2819,7 @@
                 `;
             }
 
-            if (!tieneGeneral && !tienePlatos) {
+            if (!tieneGeneral && !tienePlatos && !tieneRecetas) {
                 html = '<div style="color: var(--danger); text-align: center; padding: 16px;">No se encontraron datos importables en esta semana.</div>';
             }
 
@@ -2799,9 +2828,9 @@
             // Default selection
             selectedImportMode = tieneGeneral ? 'general' : (tienePlatos ? 'platos' : null);
 
-            // Construir lista de platos si hay
+            // Construir lista de platos si hay (y no hay recetas por día)
             const platosSection = document.getElementById('platosSection');
-            if (tienePlatos) {
+            if (tienePlatos && !tieneRecetas) {
                 renderPlatosCheckboxes(data);
                 platosSection.style.display = selectedImportMode === 'platos' ? 'block' : 'none';
             } else {
@@ -2814,6 +2843,54 @@
             const platosSection = document.getElementById('platosSection');
             platosSection.style.display = mode === 'platos' ? 'block' : 'none';
         }
+
+        // ---- Selección de días ----
+
+        function renderDiasCheckboxes(recetas) {
+            const container = document.getElementById('diasContainer');
+            container.innerHTML = '';
+
+            const diasOrden = ['Lunes', 'Martes', 'Miércoles', 'Miercoles', 'Jueves', 'Viernes', 'Sábado', 'Sabado', 'Domingo'];
+
+            // Ordenar los días según el orden natural de la semana
+            const diasKeys = Object.keys(recetas).sort((a, b) => {
+                const ia = diasOrden.findIndex(d => d.toLowerCase() === a.toLowerCase());
+                const ib = diasOrden.findIndex(d => d.toLowerCase() === b.toLowerCase());
+                return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+            });
+
+            diasKeys.forEach(dia => {
+                const receta = recetas[dia];
+                const ingredientCount = receta.ingredientes ? receta.ingredientes.length : 0;
+                const diaDiv = document.createElement('div');
+                diaDiv.style.cssText = 'display: flex; align-items: center; padding: 12px; border-bottom: 1px solid var(--border); gap: 12px; cursor: pointer; transition: background 0.15s;';
+                diaDiv.onclick = function(e) {
+                    if (e.target.tagName !== 'INPUT') {
+                        const cb = this.querySelector('input[type="checkbox"]');
+                        cb.checked = !cb.checked;
+                    }
+                };
+                diaDiv.innerHTML = `
+                    <input type="checkbox" id="dia_${dia}" data-dia="${dia}" checked
+                           style="width: 22px; height: 22px; cursor: pointer; accent-color: var(--primary);">
+                    <label for="dia_${dia}" style="flex: 1; cursor: pointer; pointer-events: none;">
+                        <div style="font-weight: 600; font-size: 0.95rem;">${dia}</div>
+                        <div style="font-size: 0.8rem; color: var(--text-light); margin-top: 2px;">${receta.nombre || 'Menú del día'} (${ingredientCount} ing.)</div>
+                    </label>
+                `;
+                container.appendChild(diaDiv);
+            });
+        }
+
+        function selectAllDias() {
+            document.querySelectorAll('#diasContainer input[type="checkbox"]').forEach(cb => cb.checked = true);
+        }
+
+        function selectNoneDias() {
+            document.querySelectorAll('#diasContainer input[type="checkbox"]').forEach(cb => cb.checked = false);
+        }
+
+        // ---- Platos (para menús especiales sin recetas por día) ----
 
         function renderPlatosCheckboxes(data) {
             const container = document.getElementById('platosContainer');
@@ -2870,6 +2947,24 @@
             }
         }
 
+        // ---- Obtener días seleccionados ----
+
+        function getSelectedDias() {
+            const selected = [];
+            document.querySelectorAll('#diasContainer input[type="checkbox"]:checked').forEach(cb => {
+                selected.push(cb.dataset.dia);
+            });
+            return selected;
+        }
+
+        function getAllDias() {
+            const all = [];
+            document.querySelectorAll('#diasContainer input[type="checkbox"]').forEach(cb => {
+                all.push(cb.dataset.dia);
+            });
+            return all;
+        }
+
         // ---- Ejecutar la importación según el modo elegido ----
 
         async function executeImport() {
@@ -2879,14 +2974,41 @@
             }
 
             const data = pendingPaulinaData;
+            const tieneRecetas = data.recetas && Object.keys(data.recetas).length > 0;
             let itemsToImport = { general: {}, veggie: {} };
 
             if (selectedImportMode === 'general') {
-                itemsToImport.general = data.general;
+                if (tieneRecetas) {
+                    // Verificar qué días están seleccionados
+                    const selectedDias = getSelectedDias();
+                    const allDias = getAllDias();
+
+                    if (selectedDias.length === 0) {
+                        showToast('Seleccioná al menos un día', 'warning');
+                        return;
+                    }
+
+                    if (selectedDias.length === allDias.length) {
+                        // Todos los días seleccionados → usar lista general pre-armada
+                        itemsToImport.general = data.general;
+                    } else {
+                        // Solo algunos días → combinar ingredientes de los días seleccionados
+                        const combinedIngredients = [];
+                        selectedDias.forEach(dia => {
+                            const receta = data.recetas[dia];
+                            if (receta && receta.ingredientes) {
+                                combinedIngredients.push(...receta.ingredientes);
+                            }
+                        });
+                        itemsToImport.general = { 'Supermercado 🏪': combinedIngredients };
+                    }
+                } else {
+                    // Sin recetas por día → importar lista general completa
+                    itemsToImport.general = data.general;
+                }
             } else if (selectedImportMode === 'veggie') {
                 itemsToImport.veggie = data.veggie;
             } else if (selectedImportMode === 'platos') {
-                // Obtener platos seleccionados
                 const selectedIndices = [];
                 document.querySelectorAll('#platosContainer input[type="checkbox"]:checked').forEach(cb => {
                     const index = parseInt(cb.id.replace('plato_', ''));
@@ -2924,18 +3046,23 @@
             let duplicatesSkipped = 0;
             let totalProcessed = 0;
             const newItems = {};
-            const seenItems = { general: new Set(), veggie: new Set() };
+            // Deduplicar por categoría dentro de cada listType,
+            // no entre categorías distintas (ej: Comodín vs Supermercado son cosas diferentes)
+            const seenItems = {};
 
             function addItemIfNotDuplicate(product, categoryName, listType) {
                 totalProcessed++;
                 const normalized = normalizeIngredient(product);
-                console.log(`[Dedup] "${product}" → "${normalized}"`);
-                if (!normalized || seenItems[listType].has(normalized)) {
+                const dedupKey = `${listType}::${categoryName}`;
+                if (!seenItems[dedupKey]) seenItems[dedupKey] = new Set();
+
+                console.log(`[Dedup] "${product}" → "${normalized}" (${dedupKey})`);
+                if (!normalized || seenItems[dedupKey].has(normalized)) {
                     duplicatesSkipped++;
-                    console.log(`  → DUPLICADO (ya existe en ${listType})`);
+                    console.log(`  → DUPLICADO (ya existe en ${dedupKey})`);
                     return false;
                 }
-                seenItems[listType].add(normalized);
+                seenItems[dedupKey].add(normalized);
                 newItems[counter++] = {
                     name: product,
                     category: categoryName,
