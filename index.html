@@ -1085,35 +1085,24 @@
                 </button>
 
                 <!-- Opción 2: Importar de Paulina -->
-                <div style="background: var(--bg); border: 2px solid var(--border); border-radius: 12px; padding: 16px;">
-                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
-                        <span style="font-size: 1.5rem;">🍳</span>
-                        <div>
-                            <div style="font-weight: 600;">Importar de Paulina</div>
-                            <div style="font-size: 0.8rem; color: var(--text-light);">Menú semanal de Paulina Cocina</div>
-                        </div>
+                <button onclick="browseAvailableWeeks()"
+                        style="width: 100%; padding: 16px; margin-bottom: 12px; background: var(--bg); border: 2px solid var(--border); border-radius: 12px; font-size: 1rem; cursor: pointer; display: flex; align-items: center; gap: 12px;">
+                    <span style="font-size: 1.5rem;">🍳</span>
+                    <div style="text-align: left;">
+                        <div style="font-weight: 600;">Importar de Paulina</div>
+                        <div style="font-size: 0.8rem; color: var(--text-light);">Menú semanal de Paulina Cocina</div>
                     </div>
-
-                    <input type="number"
-                           id="weekNumberInput"
-                           placeholder="Número de semana (ej: 5)"
-                           min="1" max="52"
-                           style="font-size: 1rem; padding: 12px; text-align: center; margin-bottom: 8px;">
-
-                    <button onclick="loadPaulinaMenu()" class="modal-btn primary" style="width: 100%; padding: 12px;">
-                        Importar semana
-                    </button>
-                </div>
+                </button>
 
                 <!-- Opción 3: JSON (colapsado) -->
-                <details style="margin-top: 12px;">
+                <details style="margin-top: 4px;">
                     <summary style="cursor: pointer; color: var(--text-light); font-size: 0.85rem; padding: 8px 0;">
                         Pegar JSON manualmente...
                     </summary>
                     <textarea id="importJsonInput"
                               placeholder="Pegá el JSON del scraper aquí..."
                               style="width: 100%; height: 80px; padding: 12px; border: 2px solid var(--border); border-radius: 10px; font-size: 0.9rem; resize: none; margin-top: 8px;"></textarea>
-                    <button onclick="loadPaulinaMenu()" class="modal-btn secondary" style="width: 100%; margin-top: 8px;">
+                    <button onclick="loadFromJson()" class="modal-btn secondary" style="width: 100%; margin-top: 8px;">
                         Importar JSON
                     </button>
                 </details>
@@ -1123,28 +1112,52 @@
                 </button>
             </div>
 
-            <!-- Paso 2: Seleccionar platos (solo si el menú tiene platos individuales) -->
+            <!-- Paso 2: Semanas disponibles -->
             <div id="importStep2" style="display: none;">
-                <h3 style="margin-bottom: 8px; font-size: 1.1rem;" id="menuTitle">Menú especial</h3>
+                <h3 style="margin-bottom: 16px; font-size: 1.1rem;">🍳 Semanas disponibles</h3>
+
+                <div id="availableWeeksLoading" style="text-align: center; padding: 24px; color: var(--text-light);">
+                    Cargando semanas...
+                </div>
+
+                <div id="availableWeeksList" style="max-height: 320px; overflow-y: auto; margin-bottom: 16px;">
+                </div>
+
+                <div id="availableWeeksEmpty" style="display: none; text-align: center; padding: 24px;">
+                    <div style="font-size: 2rem; margin-bottom: 8px;">📭</div>
+                    <div style="color: var(--text-light); font-size: 0.9rem;">No hay semanas disponibles.</div>
+                    <div style="color: var(--text-light); font-size: 0.8rem; margin-top: 4px;">Ejecutá el scraper primero para subir menús.</div>
+                </div>
+
+                <button class="modal-btn secondary" onclick="backToStep1()" style="width: 100%;">
+                    ← Atrás
+                </button>
+            </div>
+
+            <!-- Paso 3: Seleccionar qué importar de la semana elegida -->
+            <div id="importStep3" style="display: none;">
+                <h3 style="margin-bottom: 4px; font-size: 1.1rem;" id="menuTitle">Menú</h3>
                 <p style="font-size: 0.8rem; color: var(--text-light); margin-bottom: 16px;" id="menuDates"></p>
 
-                <!-- Info del tipo de menú -->
-                <div id="menuTypeInfo" style="background: var(--bg); padding: 12px; border-radius: 10px; margin-bottom: 16px; font-size: 0.9rem;">
+                <!-- Opciones de importación -->
+                <div id="importOptions" style="margin-bottom: 16px;">
                 </div>
 
-                <!-- Lista de platos seleccionables -->
-                <div id="platosContainer" style="max-height: 220px; overflow-y: auto; margin-bottom: 16px; border: 1px solid var(--border); border-radius: 10px;">
-                </div>
-
-                <!-- Botones de selección rápida -->
-                <div id="quickSelectBtns" style="display: flex; gap: 8px; margin-bottom: 16px;">
-                    <button class="modal-btn secondary" style="flex: 1; padding: 10px;" onclick="selectAllPlatos()">Todos</button>
-                    <button class="modal-btn secondary" style="flex: 1; padding: 10px;" onclick="selectNonePlatos()">Ninguno</button>
+                <!-- Lista de platos seleccionables (solo si hay platos) -->
+                <div id="platosSection" style="display: none;">
+                    <div id="menuTypeInfo" style="background: var(--bg); padding: 12px; border-radius: 10px; margin-bottom: 12px; font-size: 0.9rem;">
+                    </div>
+                    <div id="platosContainer" style="max-height: 180px; overflow-y: auto; margin-bottom: 12px; border: 1px solid var(--border); border-radius: 10px;">
+                    </div>
+                    <div id="quickSelectBtns" style="display: flex; gap: 8px; margin-bottom: 16px;">
+                        <button class="modal-btn secondary" style="flex: 1; padding: 10px;" onclick="selectAllPlatos()">Todos</button>
+                        <button class="modal-btn secondary" style="flex: 1; padding: 10px;" onclick="selectNonePlatos()">Ninguno</button>
+                    </div>
                 </div>
 
                 <div class="modal-btns">
-                    <button class="modal-btn secondary" onclick="backToStep1()">← Atrás</button>
-                    <button class="modal-btn primary" onclick="importSelectedPlatos()" style="font-size: 1rem;">
+                    <button class="modal-btn secondary" onclick="backToStep2()">← Atrás</button>
+                    <button class="modal-btn primary" onclick="executeImport()" style="font-size: 1rem;">
                         Crear lista
                     </button>
                 </div>
@@ -2612,19 +2625,24 @@
         // ==================== IMPORT FROM PAULINA ====================
         let pendingPaulinaData = null;  // Datos del menú cargado pendiente de importar
 
+        // ============ Modal de importación ============
+
+        let selectedImportMode = null; // 'general', 'veggie', or 'platos'
+
         function openImportModal() {
             document.getElementById('importModal').classList.add('active');
-            document.getElementById('weekNumberInput').value = '';
             document.getElementById('importJsonInput').value = '';
             document.getElementById('importStep1').style.display = 'block';
             document.getElementById('importStep2').style.display = 'none';
+            document.getElementById('importStep3').style.display = 'none';
             pendingPaulinaData = null;
-            document.getElementById('weekNumberInput').focus();
+            selectedImportMode = null;
         }
 
         function closeImportModal() {
             document.getElementById('importModal').classList.remove('active');
             pendingPaulinaData = null;
+            selectedImportMode = null;
         }
 
         // Crear lista vacía desde el modal unificado
@@ -2643,121 +2661,188 @@
             showToast('Lista vacía creada', 'success');
         }
 
-        function backToStep1() {
-            document.getElementById('importStep1').style.display = 'block';
-            document.getElementById('importStep2').style.display = 'none';
+        function showStep(step) {
+            document.getElementById('importStep1').style.display = step === 1 ? 'block' : 'none';
+            document.getElementById('importStep2').style.display = step === 2 ? 'block' : 'none';
+            document.getElementById('importStep3').style.display = step === 3 ? 'block' : 'none';
         }
 
-        // Paso 1: Cargar el menú y mostrar opciones de selección
-        async function loadPaulinaMenu() {
-            const weekNumber = document.getElementById('weekNumberInput').value;
-            const jsonInput = document.getElementById('importJsonInput').value.trim();
+        function backToStep1() { showStep(1); }
+        function backToStep2() { showStep(2); }
 
-            if (!weekNumber && !jsonInput) {
-                showToast('Ingresá un número de semana o pegá el JSON', 'warning');
+        // ---- Paso 2: Buscar y mostrar semanas disponibles ----
+
+        async function browseAvailableWeeks() {
+            showStep(2);
+            document.getElementById('availableWeeksLoading').style.display = 'block';
+            document.getElementById('availableWeeksList').innerHTML = '';
+            document.getElementById('availableWeeksEmpty').style.display = 'none';
+
+            if (!firebaseReady || !db) {
+                document.getElementById('availableWeeksLoading').style.display = 'none';
+                document.getElementById('availableWeeksEmpty').style.display = 'block';
                 return;
             }
 
-            let data;
+            try {
+                const snapshot = await db.collection('paulina_menus').orderBy('semana', 'desc').get();
+                document.getElementById('availableWeeksLoading').style.display = 'none';
 
-            if (jsonInput) {
-                try {
-                    data = JSON.parse(jsonInput);
-                } catch (e) {
-                    showToast('JSON inválido', 'error');
+                if (snapshot.empty) {
+                    document.getElementById('availableWeeksEmpty').style.display = 'block';
                     return;
                 }
-            } else if (weekNumber) {
-                showToast('Buscando semana ' + weekNumber + '...', 'success');
 
-                try {
-                    if (firebaseReady && db) {
-                        const doc = await db.collection('paulina_menus').doc('semana_' + weekNumber).get();
-                        if (doc.exists) {
-                            data = doc.data();
-                        }
-                    }
+                const listEl = document.getElementById('availableWeeksList');
+                listEl.innerHTML = '';
 
-                    if (!data) {
-                        showToast('Semana ' + weekNumber + ' no encontrada. Ejecutá el scraper primero.', 'warning');
-                        return;
-                    }
-                } catch (error) {
-                    console.error('Error buscando semana:', error);
-                    showToast('Error al buscar la semana', 'error');
-                    return;
-                }
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    const generalCount = data.general
+                        ? Object.values(data.general).reduce((s, items) => s + items.length, 0)
+                        : 0;
+                    const veggieCount = data.veggie
+                        ? Object.values(data.veggie).reduce((s, items) => s + items.length, 0)
+                        : 0;
+                    const platosCount = data.platos ? data.platos.length : 0;
+                    const hasSeparateVeggie = veggieCount > 0 && JSON.stringify(data.veggie) !== JSON.stringify(data.general);
+
+                    let badges = '';
+                    if (generalCount > 0) badges += `<span style="background: var(--primary); color: white; padding: 2px 8px; border-radius: 8px; font-size: 0.7rem;">General: ${generalCount}</span> `;
+                    if (hasSeparateVeggie) badges += `<span style="background: #4caf50; color: white; padding: 2px 8px; border-radius: 8px; font-size: 0.7rem;">Veggie: ${veggieCount}</span> `;
+                    if (platosCount > 0) badges += `<span style="background: #ff9800; color: white; padding: 2px 8px; border-radius: 8px; font-size: 0.7rem;">${platosCount} platos</span>`;
+
+                    const card = document.createElement('div');
+                    card.style.cssText = 'padding: 14px 12px; border: 2px solid var(--border); border-radius: 12px; margin-bottom: 8px; cursor: pointer; transition: border-color 0.15s, background 0.15s;';
+                    card.onmouseenter = () => card.style.borderColor = 'var(--primary)';
+                    card.onmouseleave = () => card.style.borderColor = 'var(--border)';
+                    card.onclick = () => selectWeekToImport(data);
+                    card.innerHTML = `
+                        <div style="font-weight: 600; font-size: 0.95rem;">${data.titulo || 'Semana ' + data.semana}</div>
+                        ${data.fechas ? `<div style="font-size: 0.8rem; color: var(--text-light); margin-top: 2px;">${data.fechas}</div>` : ''}
+                        <div style="margin-top: 8px; display: flex; gap: 4px; flex-wrap: wrap;">${badges}</div>
+                    `;
+                    listEl.appendChild(card);
+                });
+            } catch (error) {
+                console.error('Error buscando semanas:', error);
+                document.getElementById('availableWeeksLoading').style.display = 'none';
+                showToast('Error al buscar semanas', 'error');
             }
+        }
 
-            if (!data) {
-                showToast('Datos inválidos', 'error');
-                return;
-            }
+        // ---- Paso 3: Elegir qué importar de la semana seleccionada ----
 
+        function selectWeekToImport(data) {
             pendingPaulinaData = data;
-            showStep2(data);
-        }
+            showStep(3);
 
-        // Mostrar paso 2 con opciones de selección (o importar directo si no hay opciones)
-        function showStep2(data) {
-            // Determinar si tiene platos individuales o lista general
+            document.getElementById('menuTitle').textContent = data.titulo || 'Menú';
+            document.getElementById('menuDates').textContent = data.fechas ? `${data.fechas}` : '';
+
             const tienePlatos = data.platos && data.platos.length > 0;
-            const tieneListaGeneral = data.general && Object.keys(data.general).length > 0;
+            const tieneGeneral = data.general && Object.keys(data.general).length > 0;
+            const tieneVeggie = data.veggie && Object.keys(data.veggie).length > 0;
+            const hasSeparateVeggie = tieneVeggie && JSON.stringify(data.veggie) !== JSON.stringify(data.general);
 
-            // Si es lista general simple, importar directamente sin paso 2
-            if (!tienePlatos && tieneListaGeneral) {
-                const totalItems = Object.values(data.general).reduce((sum, items) => sum + items.length, 0);
-                showToast(`Importando ${totalItems} productos...`, 'success');
-                const hasSeperateVeggie = data.veggie && JSON.stringify(data.veggie) !== JSON.stringify(data.general);
-                createWeekFromImport(data, { general: data.general, veggie: hasSeperateVeggie ? data.veggie : {} });
-                return;
+            const generalCount = tieneGeneral
+                ? Object.values(data.general).reduce((s, items) => s + items.length, 0) : 0;
+            const veggieCount = hasSeparateVeggie
+                ? Object.values(data.veggie).reduce((s, items) => s + items.length, 0) : 0;
+
+            // Construir opciones de importación
+            const optionsEl = document.getElementById('importOptions');
+            let html = '<div style="font-size: 0.9rem; color: var(--text-light); margin-bottom: 10px;">Elegí qué lista importar:</div>';
+
+            if (tieneGeneral) {
+                html += `
+                    <label style="display: flex; align-items: center; gap: 12px; padding: 14px 12px; border: 2px solid var(--border); border-radius: 12px; margin-bottom: 8px; cursor: pointer;" id="optGeneral" onclick="selectImportMode('general')">
+                        <input type="radio" name="importMode" value="general" style="width: 20px; height: 20px; accent-color: var(--primary);" checked>
+                        <div style="flex: 1;">
+                            <div style="font-weight: 600;">Lista General completa</div>
+                            <div style="font-size: 0.8rem; color: var(--text-light); margin-top: 2px;">Todos los menús de la semana (${generalCount} productos)</div>
+                        </div>
+                    </label>
+                `;
             }
 
-            // Si tiene platos seleccionables, mostrar paso 2
-            document.getElementById('importStep1').style.display = 'none';
-            document.getElementById('importStep2').style.display = 'block';
-
-            // Mostrar título y fechas
-            document.getElementById('menuTitle').textContent = data.titulo || 'Menú';
-            document.getElementById('menuDates').textContent = data.fechas ? `📅 ${data.fechas}` : '';
-
-            const platosContainer = document.getElementById('platosContainer');
-            const menuTypeInfo = document.getElementById('menuTypeInfo');
-            const quickSelectBtns = document.getElementById('quickSelectBtns');
-
-            platosContainer.innerHTML = '';
+            if (hasSeparateVeggie) {
+                html += `
+                    <label style="display: flex; align-items: center; gap: 12px; padding: 14px 12px; border: 2px solid var(--border); border-radius: 12px; margin-bottom: 8px; cursor: pointer;" id="optVeggie" onclick="selectImportMode('veggie')">
+                        <input type="radio" name="importMode" value="veggie" style="width: 20px; height: 20px; accent-color: #4caf50;">
+                        <div style="flex: 1;">
+                            <div style="font-weight: 600;">Lista Vegetariana</div>
+                            <div style="font-size: 0.8rem; color: var(--text-light); margin-top: 2px;">Versión sin carnes (${veggieCount} productos)</div>
+                        </div>
+                    </label>
+                `;
+            }
 
             if (tienePlatos) {
-                // Menú con platos individuales - mostrar para seleccionar
-                menuTypeInfo.innerHTML = `
-                    <div style="color: var(--primary);">🍽️ Menú con ${data.platos.length} platos</div>
-                    <div style="margin-top: 4px;">Seleccioná los platos que querés incluir:</div>
+                html += `
+                    <label style="display: flex; align-items: center; gap: 12px; padding: 14px 12px; border: 2px solid var(--border); border-radius: 12px; margin-bottom: 8px; cursor: pointer;" id="optPlatos" onclick="selectImportMode('platos')">
+                        <input type="radio" name="importMode" value="platos" style="width: 20px; height: 20px; accent-color: #ff9800;" ${!tieneGeneral ? 'checked' : ''}>
+                        <div style="flex: 1;">
+                            <div style="font-weight: 600;">Elegir platos individuales</div>
+                            <div style="font-size: 0.8rem; color: var(--text-light); margin-top: 2px;">Seleccioná qué platos querés (${data.platos.length} disponibles)</div>
+                        </div>
+                    </label>
                 `;
-                quickSelectBtns.style.display = 'flex';
-
-                data.platos.forEach((plato, index) => {
-                    const ingredientCount = plato.ingredientes ? plato.ingredientes.length : 0;
-                    const platoDiv = document.createElement('div');
-                    platoDiv.style.cssText = 'display: flex; align-items: center; padding: 14px 12px; border-bottom: 1px solid var(--border); gap: 12px; cursor: pointer; transition: background 0.15s;';
-                    platoDiv.onclick = function(e) {
-                        if (e.target.tagName !== 'INPUT') {
-                            const cb = this.querySelector('input[type="checkbox"]');
-                            cb.checked = !cb.checked;
-                        }
-                    };
-                    platoDiv.innerHTML = `
-                        <input type="checkbox" id="plato_${index}" checked style="width: 22px; height: 22px; cursor: pointer; accent-color: var(--primary);">
-                        <label for="plato_${index}" style="flex: 1; cursor: pointer; pointer-events: none;">
-                            <div style="font-weight: 600; font-size: 0.95rem;">${index + 1}. ${plato.nombre || 'Plato ' + (index + 1)}</div>
-                            <div style="font-size: 0.8rem; color: var(--text-light); margin-top: 2px;">${ingredientCount} ingredientes</div>
-                        </label>
-                    `;
-                    platosContainer.appendChild(platoDiv);
-                });
-            } else {
-                menuTypeInfo.innerHTML = `<div style="color: var(--danger);">⚠️ No se encontraron datos válidos</div>`;
-                quickSelectBtns.style.display = 'none';
             }
+
+            if (!tieneGeneral && !tienePlatos) {
+                html = '<div style="color: var(--danger); text-align: center; padding: 16px;">No se encontraron datos importables en esta semana.</div>';
+            }
+
+            optionsEl.innerHTML = html;
+
+            // Default selection
+            selectedImportMode = tieneGeneral ? 'general' : (tienePlatos ? 'platos' : null);
+
+            // Construir lista de platos si hay
+            const platosSection = document.getElementById('platosSection');
+            if (tienePlatos) {
+                renderPlatosCheckboxes(data);
+                platosSection.style.display = selectedImportMode === 'platos' ? 'block' : 'none';
+            } else {
+                platosSection.style.display = 'none';
+            }
+        }
+
+        function selectImportMode(mode) {
+            selectedImportMode = mode;
+            const platosSection = document.getElementById('platosSection');
+            platosSection.style.display = mode === 'platos' ? 'block' : 'none';
+        }
+
+        function renderPlatosCheckboxes(data) {
+            const container = document.getElementById('platosContainer');
+            const typeInfo = document.getElementById('menuTypeInfo');
+            container.innerHTML = '';
+
+            typeInfo.innerHTML = `
+                <div style="color: var(--primary);">Seleccioná los platos que querés incluir:</div>
+            `;
+
+            data.platos.forEach((plato, index) => {
+                const ingredientCount = plato.ingredientes ? plato.ingredientes.length : 0;
+                const platoDiv = document.createElement('div');
+                platoDiv.style.cssText = 'display: flex; align-items: center; padding: 14px 12px; border-bottom: 1px solid var(--border); gap: 12px; cursor: pointer; transition: background 0.15s;';
+                platoDiv.onclick = function(e) {
+                    if (e.target.tagName !== 'INPUT') {
+                        const cb = this.querySelector('input[type="checkbox"]');
+                        cb.checked = !cb.checked;
+                    }
+                };
+                platoDiv.innerHTML = `
+                    <input type="checkbox" id="plato_${index}" checked style="width: 22px; height: 22px; cursor: pointer; accent-color: var(--primary);">
+                    <label for="plato_${index}" style="flex: 1; cursor: pointer; pointer-events: none;">
+                        <div style="font-weight: 600; font-size: 0.95rem;">${index + 1}. ${plato.nombre || 'Plato ' + (index + 1)}</div>
+                        <div style="font-size: 0.8rem; color: var(--text-light); margin-top: 2px;">${ingredientCount} ingredientes</div>
+                    </label>
+                `;
+                container.appendChild(platoDiv);
+            });
         }
 
         function selectAllPlatos() {
@@ -2768,53 +2853,71 @@
             document.querySelectorAll('#platosContainer input[type="checkbox"]').forEach(cb => cb.checked = false);
         }
 
-        // Paso 2: Importar los platos seleccionados
-        async function importSelectedPlatos() {
+        // ---- Importar desde JSON pegado ----
+
+        function loadFromJson() {
+            const jsonInput = document.getElementById('importJsonInput').value.trim();
+            if (!jsonInput) {
+                showToast('Pegá el JSON del scraper', 'warning');
+                return;
+            }
+            try {
+                const data = JSON.parse(jsonInput);
+                pendingPaulinaData = data;
+                selectWeekToImport(data);
+            } catch (e) {
+                showToast('JSON inválido', 'error');
+            }
+        }
+
+        // ---- Ejecutar la importación según el modo elegido ----
+
+        async function executeImport() {
             if (!pendingPaulinaData) {
                 showToast('No hay datos cargados', 'error');
                 return;
             }
 
             const data = pendingPaulinaData;
+            let itemsToImport = { general: {}, veggie: {} };
 
-            // Obtener platos seleccionados
-            const selectedIndices = [];
-            document.querySelectorAll('#platosContainer input[type="checkbox"]:checked').forEach(cb => {
-                const index = parseInt(cb.id.replace('plato_', ''));
-                if (!isNaN(index)) selectedIndices.push(index);
-            });
+            if (selectedImportMode === 'general') {
+                itemsToImport.general = data.general;
+            } else if (selectedImportMode === 'veggie') {
+                itemsToImport.veggie = data.veggie;
+            } else if (selectedImportMode === 'platos') {
+                // Obtener platos seleccionados
+                const selectedIndices = [];
+                document.querySelectorAll('#platosContainer input[type="checkbox"]:checked').forEach(cb => {
+                    const index = parseInt(cb.id.replace('plato_', ''));
+                    if (!isNaN(index)) selectedIndices.push(index);
+                });
 
-            if (selectedIndices.length === 0) {
-                showToast('Seleccioná al menos un plato', 'warning');
+                if (selectedIndices.length === 0) {
+                    showToast('Seleccioná al menos un plato', 'warning');
+                    return;
+                }
+
+                const combinedIngredients = [];
+                selectedIndices.forEach(index => {
+                    const plato = data.platos[index];
+                    if (plato && plato.ingredientes) {
+                        combinedIngredients.push(...plato.ingredientes);
+                    }
+                });
+                itemsToImport.general = { 'Supermercado 🏪': combinedIngredients };
+            } else {
+                showToast('Seleccioná una opción de importación', 'warning');
                 return;
             }
 
-            // Combinar ingredientes de platos seleccionados
-            const combinedIngredients = [];
-            selectedIndices.forEach(index => {
-                const plato = data.platos[index];
-                if (plato && plato.ingredientes) {
-                    combinedIngredients.push(...plato.ingredientes);
-                }
-            });
-
-            // Agrupar por categoría
-            // Usar la lista veggie del scraper si existe y es distinta de la general,
-            // en vez de duplicar los mismos ingredientes en ambas listas
-            const hasSeperateVeggie = data.veggie && JSON.stringify(data.veggie) !== JSON.stringify(data.general);
-            const itemsToImport = {
-                general: { 'Supermercado 🏪': combinedIngredients },
-                veggie: hasSeperateVeggie ? data.veggie : {}
-            };
-
-            // Crear la semana con los items seleccionados
             await createWeekFromImport(data, itemsToImport);
         }
 
-        // Crear semana desde datos importados (refactorizado)
+        // ---- Crear semana desde datos importados ----
+
         async function createWeekFromImport(data, itemsToImport) {
-            const weekNumber = document.getElementById('weekNumberInput').value;
-            const weekName = data.titulo || `Semana ${weekNumber || 'Importada'}`;
+            const weekName = data.titulo || `Semana ${data.semana || 'Importada'}`;
             const weekId = 'week_' + Date.now();
 
             let counter = 0;
@@ -2825,8 +2928,6 @@
 
             function addItemIfNotDuplicate(product, categoryName, listType) {
                 totalProcessed++;
-                // Usar normalización agresiva para detectar duplicados como:
-                // "1 puré de tomate (usarás 2 cdas.)" y "1 puré de tomate (vas a usar 2 cdas.)"
                 const normalized = normalizeIngredient(product);
                 console.log(`[Dedup] "${product}" → "${normalized}"`);
                 if (!normalized || seenItems[listType].has(normalized)) {
@@ -2874,10 +2975,10 @@
                 updatedAt: Date.now(),
                 items: newItems,
                 itemIdCounter: counter,
-                currentList: 'general',
+                currentList: selectedImportMode === 'veggie' ? 'veggie' : 'general',
                 source: 'paulina',
                 sourceData: {
-                    semana: data.semana || weekNumber,
+                    semana: data.semana || '',
                     fechas: data.fechas || ''
                 }
             };
@@ -2898,7 +2999,7 @@
 
         // Mantener compatibilidad con importación directa (legacy)
         async function importFromPaulina() {
-            await loadPaulinaMenu();
+            openImportModal();
         }
 
         function mapCategoryName(category) {
