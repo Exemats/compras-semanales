@@ -382,6 +382,11 @@ class PaulinaExtractor:
 
         container = self.soup.find(id=container_id)
         if not container:
+            # Solo usar fallbacks para la lista general, no para la veggie
+            # ya que los fallbacks buscan "lista de compras" / "lista general"
+            # y terminarían devolviendo la lista general como si fuera veggie
+            if container_id == 'lista_compra_v':
+                return {}
             container = self.soup.find(attrs={'data-nombre': re.compile(r'Lista', re.I)})
 
         if not container:
