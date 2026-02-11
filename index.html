@@ -352,6 +352,21 @@
             margin-bottom: 16px;
         }
 
+        .menu-section-header {
+            font-weight: 600;
+            font-size: 0.85rem;
+            color: var(--text-light);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 12px 8px 8px;
+            margin-top: 8px;
+            border-bottom: 2px solid var(--border);
+        }
+
+        .menu-section-header:first-child {
+            margin-top: 0;
+        }
+
         .import-empty {
             display: none;
             text-align: center;
@@ -544,6 +559,51 @@
             font-size: 0.8rem;
             color: var(--text-light);
             margin-top: 2px;
+        }
+
+        /* Day/Dish selection checkboxes */
+        .check-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 12px;
+            border-bottom: 1px solid var(--border);
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+
+        .check-row:hover {
+            background: #f8f8f8;
+        }
+
+        .check-row:last-child {
+            border-bottom: none;
+        }
+
+        .check-row input[type="checkbox"] {
+            width: 22px;
+            height: 22px;
+            accent-color: var(--primary);
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        .check-row label {
+            flex: 1;
+            cursor: pointer;
+            margin: 0;
+        }
+
+        .check-row-title {
+            font-weight: 600;
+            font-size: 0.95rem;
+            color: var(--text);
+            margin-bottom: 3px;
+        }
+
+        .check-row-subtitle {
+            font-size: 0.8rem;
+            color: var(--text-light);
         }
 
         .import-error-msg {
@@ -2962,20 +3022,48 @@ const snapshot = await db.collection('paulina_menus').get();
                     return;
                 }
  
-                // Ordenar: especiales primero, luego por semana descendente
+                // Recolectar todos los documentos
                 const docs = [];
                 snapshot.forEach(doc => docs.push(doc.data()));
-                docs.sort((a, b) => {
+                
+                // Determinar el número de semana actual del año
+                const now = new Date();
+                const startOfYear = new Date(now.getFullYear(), 0, 1);
+                const daysSinceStart = Math.floor((now - startOfYear) / (24 * 60 * 60 * 1000));
+                const currentWeekOfYear = Math.ceil((daysSinceStart + startOfYear.getDay() + 1) / 7);
+                
+                // Separar menús en actuales e históricos
+                // Menús especiales y menús de las últimas 3 semanas son "actuales"
+                const currentMenus = [];
+                const historicalMenus = [];
+                
+                docs.forEach(data => {
+                    const isSpecial = !data.semana;
+                    const isRecent = data.semana && (currentWeekOfYear - data.semana <= 3);
+                    
+                    if (isSpecial || isRecent) {
+                        currentMenus.push(data);
+                    } else {
+                        historicalMenus.push(data);
+                    }
+                });
+                
+                // Ordenar: especiales primero, luego por semana descendente
+                const sortMenus = (a, b) => {
                     const aIsSpecial = !a.semana;
                     const bIsSpecial = !b.semana;
                     if (aIsSpecial !== bIsSpecial) return aIsSpecial ? -1 : 1;
                     return (b.semana || 0) - (a.semana || 0);
-                });
+                };
+                
+                currentMenus.sort(sortMenus);
+                historicalMenus.sort(sortMenus);
  
                 const listEl = document.getElementById('availableWeeksList');
                 listEl.innerHTML = '';
- 
-                docs.forEach(data => {
+                
+                // Función auxiliar para crear una tarjeta de menú
+                const createMenuCard = (data) => {
                     const generalCount = data.general
                         ? Object.values(data.general).reduce((s, items) => s + items.length, 0)
                         : 0;
@@ -3002,8 +3090,32 @@ const snapshot = await db.collection('paulina_menus').get();
                         ${data.fechas ? `<div class="week-card-dates">${data.fechas}</div>` : ''}
                         <div class="week-card-badges">${badges}</div>
                     `;
-                    listEl.appendChild(card);
-                });
+                    return card;
+                };
+                
+                // Renderizar menús actuales
+                if (currentMenus.length > 0) {
+                    const currentHeader = document.createElement('div');
+                    currentHeader.className = 'menu-section-header';
+                    currentHeader.textContent = '📅 Actualmente disponibles';
+                    listEl.appendChild(currentHeader);
+                    
+                    currentMenus.forEach(data => {
+                        listEl.appendChild(createMenuCard(data));
+                    });
+                }
+                
+                // Renderizar menús históricos
+                if (historicalMenus.length > 0) {
+                    const historicalHeader = document.createElement('div');
+                    historicalHeader.className = 'menu-section-header';
+                    historicalHeader.textContent = '📚 Histórico';
+                    listEl.appendChild(historicalHeader);
+                    
+                    historicalMenus.forEach(data => {
+                        listEl.appendChild(createMenuCard(data));
+                    });
+                }
             } catch (error) {
                 console.error('Error buscando semanas:', error);
                 document.getElementById('availableWeeksLoading').style.display = 'none';
@@ -3146,6 +3258,17 @@ const snapshot = await db.collection('paulina_menus').get();
             const container = document.getElementById('diasContainer');
             container.innerHTML = '';
             
+            // Mapeo de días a emojis
+            const dayEmojis = {
+                'Lunes': '📅',
+                'Martes': '📆',
+                'Miércoles': '📋',
+                'Jueves': '📌',
+                'Viernes': '🎉',
+                'Sábado': '🌟',
+                'Domingo': '☀️'
+            };
+            
             // Normalizar día (remover acentos para comparación)
             const normalizeDayName = (dia) => {
                 return dia.toLowerCase()
@@ -3162,6 +3285,7 @@ const snapshot = await db.collection('paulina_menus').get();
             diasDisponibles.forEach((dia) => {
                 const receta = recetas[dia];
                 const ingredientCount = receta.ingredientes ? receta.ingredientes.length : 0;
+                const emoji = dayEmojis[dia] || '📅';
                 const diaDiv = document.createElement('div');
                 diaDiv.className = 'check-row';
                 diaDiv.onclick = function(e) {
@@ -3173,7 +3297,7 @@ const snapshot = await db.collection('paulina_menus').get();
                 diaDiv.innerHTML = `
                     <input type="checkbox" id="dia_${dia}" data-dia="${dia}" checked>
                     <label for="dia_${dia}">
-                        <div class="check-row-title">${dia}</div>
+                        <div class="check-row-title">${emoji} ${dia}</div>
                         <div class="check-row-subtitle">${receta.nombre || 'Sin nombre'} · ${ingredientCount} ingredientes</div>
                     </label>
                 `;
@@ -3208,7 +3332,7 @@ const snapshot = await db.collection('paulina_menus').get();
                 platoDiv.innerHTML = `
                     <input type="checkbox" id="plato_${index}" checked>
                     <label for="plato_${index}">
-                        <div class="check-row-title">${index + 1}. ${plato.nombre || 'Plato ' + (index + 1)}</div>
+                        <div class="check-row-title">🍽️ ${plato.nombre || 'Plato ' + (index + 1)}</div>
                         <div class="check-row-subtitle">${ingredientCount} ingredientes</div>
                     </label>
                 `;
