@@ -947,7 +947,15 @@ Descarga masiva:
             print("\n❌ No se encontraron menús activos")
         return 0
     
-    
+    # Modo especiales: descargar todos los menús especiales activos
+    if args.especiales:
+        menus = MenuDiscoverer.descubrir_menus()
+        especiales = [menu for menu in menus if menu['tipo'] == 'especial']
+        
+        if not especiales:
+            print("\n❌ No se encontraron menús especiales activos")
+            return 1
+        
         print(f"\n🌟 Procesando {len(especiales)} menús especiales...")
         uploader = None
         if not args.local:
@@ -1079,10 +1087,33 @@ Descarga masiva:
 
     # Determinar qué semanas procesar
     semanas_a_procesar = []
+    menus_a_procesar = []  # Para menús especiales y semanales descubiertos
 
     if args.todas:
-        semanas_a_procesar = PaulinaExtractor.listar_semanas_disponibles()
-        print(f"\n📋 Procesando {len(semanas_a_procesar)} semanas: {', '.join(map(str, semanas_a_procesar))}")
+        # Usar MenuDiscoverer para encontrar TODOS los menús disponibles en tiempo real
+        print("\n🔍 Descubriendo todos los menús disponibles...")
+        menus = MenuDiscoverer.descubrir_menus()
+        
+        if menus:
+            # Separar menús semanales y especiales
+            menus_semanales = [m for m in menus if m['tipo'] == 'semanal' and m['semana']]
+            menus_especiales = [m for m in menus if m['tipo'] == 'especial']
+            
+            # Procesar menús semanales
+            semanas_a_procesar = sorted(list(set([m['semana'] for m in menus_semanales])), reverse=True)
+            
+            # Guardar menús especiales para procesar después
+            menus_a_procesar = menus_especiales
+            
+            print(f"\n📋 Encontrados:")
+            print(f"   📅 {len(semanas_a_procesar)} menús semanales: {', '.join(map(str, semanas_a_procesar))}")
+            print(f"   🌟 {len(menus_especiales)} menús especiales")
+        else:
+            print("\n⚠️  No se encontraron menús usando MenuDiscoverer, intentando método clásico...")
+            # Fallback al método antiguo si MenuDiscoverer falla
+            semanas_a_procesar = PaulinaExtractor.listar_semanas_disponibles()
+            if semanas_a_procesar:
+                print(f"\n📋 Procesando {len(semanas_a_procesar)} semanas: {', '.join(map(str, semanas_a_procesar))}")
     elif args.rango:
         try:
             inicio, fin = map(int, args.rango.split('-'))
@@ -1102,6 +1133,7 @@ Descarga masiva:
         uploader = FirebaseUploader(args.credentials)
 
     exitosas = 0
+    exitosas_especiales = 0  # Para menús especiales cuando se usa --todas
     for semana in semanas_a_procesar:
         print(f"\n{'='*50}")
         extractor = PaulinaExtractor(semana, modo=args.modo)
@@ -1149,15 +1181,70 @@ Descarga masiva:
             for dia, receta in datos['recetas'].items():
                 print(f"   {dia}: {receta['nombre']} ({len(receta['ingredientes'])} ingredientes)")
 
+    # Procesar menús especiales si hay alguno (cuando se usa --todas)
+    if menus_a_procesar:
+        print(f"\n{'='*50}")
+        print(f"🌟 Procesando {len(menus_a_procesar)} menús especiales...")
+        
+        for menu in menus_a_procesar:
+            print(f"\n{'='*50}")
+            print(f"🌟 {menu['titulo']}")
+            
+            extractor = PaulinaExtractor(url=menu['url'], modo=args.modo)
+            
+            if dias_seleccionados:
+                extractor.set_platos_seleccionados(dias_seleccionados)
+            
+            if not extractor.descargar():
+                print(f"⚠️  No se pudo descargar: {menu['titulo']}")
+                continue
+            
+            if not extractor.extraer():
+                print(f"⚠️  No se pudo extraer: {menu['titulo']}")
+                continue
+            
+            datos = extractor.generar_json()
+            
+            # Guardar JSON local
+            titulo_safe = re.sub(r'[^\w\-]', '_', extractor.titulo[:30])
+            output_path = args.output.replace('.json', f'_{titulo_safe}.json')
+            with open(output_path, 'w', encoding='utf-8') as f:
+                json.dump(datos, f, ensure_ascii=False, indent=2)
+            print(f"📄 JSON guardado: {output_path}")
+            
+            # Subir a Firebase
+            if uploader and uploader.db:
+                if extractor.semana:
+                    uploader.upload(extractor.semana, datos)
+                else:
+                    # Menú especial sin número de semana: usar slug del título
+                    slug = re.sub(r'[^\w]+', '_', extractor.titulo.lower()).strip('_')[:40]
+                    uploader.upload_especial(slug, datos)
+            
+            exitosas_especiales += 1
+            print(f"✅ {datos['titulo']}")
+            if datos.get('fechas'):
+                print(f"   📅 {datos['fechas']}")
+            if 'general' in datos:
+                total = sum(len(items) for items in datos['general'].values())
+                print(f"   📋 {total} items extraídos")
+            if datos.get('platos'):
+                print(f"   🍽️  {len(datos['platos'])} platos disponibles")
+
     # Resumen final
     print(f"\n{'='*50}")
-    print(f"✨ ¡Listo! {exitosas}/{len(semanas_a_procesar)} semanas procesadas")
+    total_procesados = exitosas + exitosas_especiales
+    print(f"✨ ¡Listo! {exitosas}/{len(semanas_a_procesar)} semanas procesadas", end="")
+    if menus_a_procesar:
+        print(f" + {exitosas_especiales}/{len(menus_a_procesar)} menús especiales")
+    else:
+        print()
 
     if not args.local and (not uploader or not uploader.db):
         print("\n💡 Para subir a Firebase, creá el archivo de credenciales.")
         print("   Ver SETUP_FIREBASE.md para instrucciones.")
 
-    return 0 if exitosas > 0 else 1
+    return 0 if (exitosas > 0 or exitosas_especiales > 0) else 1
 
 
 if __name__ == '__main__':
