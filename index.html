@@ -3158,9 +3158,10 @@
                     
                     // Toggle function for both click and keyboard events
                     const toggleSection = function() {
-                        const isCollapsed = historicalHeader.classList.toggle('collapsed');
+                        const nowCollapsed = historicalHeader.classList.toggle('collapsed');
                         historicalContent.classList.toggle('collapsed');
-                        historicalHeader.setAttribute('aria-expanded', isCollapsed ? 'false' : 'true');
+                        // toggle() returns true if class was added (now collapsed), false if removed (now expanded)
+                        historicalHeader.setAttribute('aria-expanded', nowCollapsed ? 'false' : 'true');
                     };
                     
                     // Set up click handler
@@ -3168,6 +3169,7 @@
                     
                     // Set up keyboard handler for accessibility
                     historicalHeader.onkeydown = function(e) {
+                        // Handle Enter and Space keys (prevent Space from scrolling the page)
                         if (e.key === 'Enter' || e.key === ' ') {
                             e.preventDefault();
                             toggleSection();
