@@ -465,44 +465,7 @@
             flex-wrap: wrap;
         }
 
-        /* Checkbox rows (dias / platos) */
-        .check-row {
-            display: flex;
-            align-items: center;
-            padding: 12px;
-            border-bottom: 1px solid var(--border);
-            gap: 12px;
-            cursor: pointer;
-            transition: background 0.15s;
-        }
 
-        .check-row:last-child {
-            border-bottom: none;
-        }
-
-        .check-row input[type="checkbox"] {
-            width: 22px;
-            height: 22px;
-            cursor: pointer;
-            accent-color: var(--primary);
-        }
-
-        .check-row label {
-            flex: 1;
-            cursor: pointer;
-            pointer-events: none;
-        }
-
-        .check-row-title {
-            font-weight: 600;
-            font-size: 0.95rem;
-        }
-
-        .check-row-subtitle {
-            font-size: 0.8rem;
-            color: var(--text-light);
-            margin-top: 2px;
-        }
 
         .import-section {
             margin-bottom: 16px;
@@ -588,7 +551,85 @@
             text-align: center;
             padding: 16px;
         }
-
+        .import-section {
+            margin-bottom: 16px;
+        }
+ 
+        .import-toggle-row {
+            display: flex;
+            gap: 8px;
+        }
+ 
+        .import-toggle {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid var(--border);
+            border-radius: 10px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            background: var(--bg);
+            color: var(--text);
+            transition: all 0.15s;
+        }
+ 
+        .import-toggle.active {
+            border-color: var(--primary);
+            background: #fff0f0;
+            color: var(--primary);
+        }
+ 
+        .import-toggle.veggie-active {
+            border-color: #4caf50;
+            background: #f0fff0;
+            color: #2e7d32;
+        }
+ 
+        .import-extras {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+ 
+        .import-extra-toggle {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            border: 2px solid var(--border);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.15s;
+            background: white;
+        }
+ 
+        .import-extra-toggle.active {
+            border-color: var(--primary);
+            background: #fff8f8;
+        }
+ 
+        .import-extra-toggle input[type="checkbox"] {
+            width: 22px;
+            height: 22px;
+            accent-color: var(--primary);
+            cursor: pointer;
+        }
+ 
+        .import-extra-info {
+            flex: 1;
+        }
+ 
+        .import-extra-name {
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+ 
+        .import-extra-desc {
+            font-size: 0.8rem;
+            color: var(--text-light);
+            margin-top: 2px;
+        }
+ 
         .import-info-msg {
             color: var(--primary);
         }
@@ -1500,11 +1541,11 @@
                 </button>
             </div>
 
-            <!-- Paso 3: Configuración modular de importación -->
+ <!-- Paso 3: Configuración modular de importación -->
             <div id="importStep3" style="display: none;">
                 <h3 class="import-step-title xs" id="menuTitle">Menú</h3>
                 <p class="import-subtitle" id="menuDates"></p>
-
+ 
                 <!-- 1. Tipo de lista: General / Vegetariano -->
                 <div id="listTypeSection" class="import-section">
                     <div class="import-hint-label">Tipo de lista:</div>
@@ -1513,7 +1554,7 @@
                         <button class="import-toggle" id="toggleVeggie" onclick="selectListType('veggie')" style="display:none;">🥬 Vegetariana</button>
                     </div>
                 </div>
-
+ 
                 <!-- 2. Días a incluir (si hay recetas por día) -->
                 <div id="diasSection" style="display: none;">
                     <div class="import-hint-label">Días a incluir:</div>
@@ -1523,7 +1564,7 @@
                         <button class="modal-btn secondary import-quick-btn" onclick="selectNoneDias()">Ninguno</button>
                     </div>
                 </div>
-
+ 
                 <!-- 2b. Platos individuales (para menús especiales sin recetas por día) -->
                 <div id="platosSection" style="display: none;">
                     <div class="import-hint-label">Platos a incluir:</div>
@@ -1532,6 +1573,12 @@
                         <button class="modal-btn secondary import-quick-btn lg" onclick="selectAllPlatos()">Todos</button>
                         <button class="modal-btn secondary import-quick-btn lg" onclick="selectNonePlatos()">Ninguno</button>
                     </div>
+                </div>
+ 
+                <!-- 3. Categorías extras: Yapa / Comodín -->
+                <div id="extrasSection" style="display: none;">
+                    <div class="import-hint-label">Categorías extras:</div>
+                    <div id="extrasContainer" class="import-extras"></div>
                 </div>
 
                 <!-- 3. Categorías extras: Yapa / Comodín -->
@@ -2864,14 +2911,14 @@
             }
 
             try {
-                const snapshot = await db.collection('paulina_menus').get();
+const snapshot = await db.collection('paulina_menus').get();
                 document.getElementById('availableWeeksLoading').style.display = 'none';
-
+ 
                 if (snapshot.empty) {
                     document.getElementById('availableWeeksEmpty').style.display = 'block';
                     return;
                 }
-
+ 
                 // Ordenar: especiales primero, luego por semana descendente
                 const docs = [];
                 snapshot.forEach(doc => docs.push(doc.data()));
@@ -2881,10 +2928,10 @@
                     if (aIsSpecial !== bIsSpecial) return aIsSpecial ? -1 : 1;
                     return (b.semana || 0) - (a.semana || 0);
                 });
-
+ 
                 const listEl = document.getElementById('availableWeeksList');
                 listEl.innerHTML = '';
-
+ 
                 docs.forEach(data => {
                     const generalCount = data.general
                         ? Object.values(data.general).reduce((s, items) => s + items.length, 0)
@@ -2896,7 +2943,7 @@
                     const recetasCount = data.recetas ? Object.keys(data.recetas).length : 0;
                     const hasSeparateVeggie = veggieCount > 0 && JSON.stringify(data.veggie) !== JSON.stringify(data.general);
                     const isSpecial = !data.semana;
-
+ 
                     let badges = '';
                     if (isSpecial) badges += `<span class="badge badge-platos">Especial</span> `;
                     if (generalCount > 0) badges += `<span class="badge badge-primary">${generalCount} items</span> `;
@@ -2922,20 +2969,20 @@
         }
 
         // ---- Paso 3: Configuración modular de importación ----
-
+ 
         function selectWeekToImport(data) {
             pendingPaulinaData = data;
             showStep(3);
-
+ 
             document.getElementById('menuTitle').textContent = data.titulo || 'Menú';
             document.getElementById('menuDates').textContent = data.fechas || '';
-
+ 
             const tieneRecetas = data.recetas && Object.keys(data.recetas).length > 0;
             const tienePlatos = data.platos && data.platos.length > 0;
             const tieneGeneral = data.general && Object.keys(data.general).length > 0;
             const tieneVeggie = data.veggie && Object.keys(data.veggie).length > 0;
             const hasSeparateVeggie = tieneVeggie && JSON.stringify(data.veggie) !== JSON.stringify(data.general);
-
+ 
             // 1. Tipo de lista: General / Vegetariano
             selectedImportMode = 'general';
             const toggleGeneral = document.getElementById('toggleGeneral');
@@ -2944,7 +2991,7 @@
             toggleGeneral.classList.remove('veggie-active');
             toggleVeggie.classList.remove('active', 'veggie-active');
             toggleVeggie.style.display = hasSeparateVeggie ? '' : 'none';
-
+ 
             // 2. Días (si hay recetas por día)
             const diasSection = document.getElementById('diasSection');
             if (tieneRecetas) {
@@ -2953,7 +3000,7 @@
             } else {
                 diasSection.style.display = 'none';
             }
-
+ 
             // 2b. Platos individuales (para menús especiales sin recetas por día)
             const platosSection = document.getElementById('platosSection');
             if (tienePlatos && !tieneRecetas) {
@@ -2962,43 +3009,43 @@
             } else {
                 platosSection.style.display = 'none';
             }
-
+ 
             // 3. Categorías extras: Yapa / Comodín
             renderExtrasCheckboxes(data);
         }
-
+ 
         function selectListType(type) {
             selectedImportMode = type;
-
+ 
             const toggleGeneral = document.getElementById('toggleGeneral');
             const toggleVeggie = document.getElementById('toggleVeggie');
-
+ 
             toggleGeneral.classList.toggle('active', type === 'general');
             toggleGeneral.classList.remove('veggie-active');
             toggleVeggie.classList.toggle('veggie-active', type === 'veggie');
             toggleVeggie.classList.remove('active');
-
+ 
             // Actualizar extras con la lista seleccionada
             if (pendingPaulinaData) {
                 renderExtrasCheckboxes(pendingPaulinaData);
             }
         }
-
+ 
         // ---- Categorías extras (Yapa, Comodín) ----
-
+ 
         const EXTRA_CATEGORIES = ['yapa', 'comodín', 'comodin'];
-
+ 
         function renderExtrasCheckboxes(data) {
             const container = document.getElementById('extrasContainer');
             const section = document.getElementById('extrasSection');
             container.innerHTML = '';
-
+ 
             const listData = selectedImportMode === 'veggie' ? data.veggie : data.general;
             if (!listData) {
                 section.style.display = 'none';
                 return;
             }
-
+ 
             // Encontrar categorías extras disponibles
             const extras = [];
             for (const [catName, items] of Object.entries(listData)) {
@@ -3007,14 +3054,14 @@
                     extras.push({ name: catName, count: items.length });
                 }
             }
-
+ 
             if (extras.length === 0) {
                 section.style.display = 'none';
                 return;
             }
-
+ 
             section.style.display = 'block';
-
+ 
             extras.forEach((extra, idx) => {
                 const mappedName = mapCategoryName(extra.name);
                 const div = document.createElement('div');
@@ -3035,43 +3082,6 @@
                     </div>
                 `;
                 container.appendChild(div);
-            });
-        }
-
-        // ---- Selección de días ----
-
-        function renderDiasCheckboxes(recetas) {
-            const container = document.getElementById('diasContainer');
-            container.innerHTML = '';
-
-            const diasOrden = ['Lunes', 'Martes', 'Miércoles', 'Miercoles', 'Jueves', 'Viernes', 'Sábado', 'Sabado', 'Domingo'];
-
-            // Ordenar los días según el orden natural de la semana
-            const diasKeys = Object.keys(recetas).sort((a, b) => {
-                const ia = diasOrden.findIndex(d => d.toLowerCase() === a.toLowerCase());
-                const ib = diasOrden.findIndex(d => d.toLowerCase() === b.toLowerCase());
-                return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
-            });
-
-            diasKeys.forEach(dia => {
-                const receta = recetas[dia];
-                const ingredientCount = receta.ingredientes ? receta.ingredientes.length : 0;
-                const diaDiv = document.createElement('div');
-                diaDiv.className = 'check-row';
-                diaDiv.onclick = function(e) {
-                    if (e.target.tagName !== 'INPUT') {
-                        const cb = this.querySelector('input[type="checkbox"]');
-                        cb.checked = !cb.checked;
-                    }
-                };
-                diaDiv.innerHTML = `
-                    <input type="checkbox" id="dia_${dia}" data-dia="${dia}" checked>
-                    <label for="dia_${dia}">
-                        <div class="check-row-title">${dia}</div>
-                        <div class="check-row-subtitle">${receta.nombre || 'Menú del día'} (${ingredientCount} ing.)</div>
-                    </label>
-                `;
-                container.appendChild(diaDiv);
             });
         }
 
@@ -3146,38 +3156,38 @@
         }
 
         // ---- Ejecutar la importación según la configuración modular ----
-
+ 
         async function executeImport() {
             if (!pendingPaulinaData) {
                 showToast('No hay datos cargados', 'error');
                 return;
             }
-
+ 
             const data = pendingPaulinaData;
             const tieneRecetas = data.recetas && Object.keys(data.recetas).length > 0;
             const tienePlatos = data.platos && data.platos.length > 0;
             const listType = selectedImportMode; // 'general' or 'veggie'
             const sourceList = listType === 'veggie' ? data.veggie : data.general;
-
+ 
             if (!sourceList || Object.keys(sourceList).length === 0) {
                 showToast('No hay datos para esta lista', 'error');
                 return;
             }
-
+ 
             // Obtener categorías extras seleccionadas
             const selectedExtras = new Set();
             document.querySelectorAll('#extrasContainer input[type="checkbox"]:checked').forEach(cb => {
                 selectedExtras.add(cb.dataset.category);
             });
-
+ 
             // Obtener categorías extras NO seleccionadas (para excluirlas)
             const excludedExtras = new Set();
             document.querySelectorAll('#extrasContainer input[type="checkbox"]:not(:checked)').forEach(cb => {
                 excludedExtras.add(cb.dataset.category);
             });
-
+ 
             let itemsToImport = {};
-
+ 
             if (tieneRecetas) {
                 // Menú semanal con recetas por día
                 const selectedDias = getSelectedDias();
@@ -3185,9 +3195,9 @@
                     showToast('Seleccioná al menos un día', 'warning');
                     return;
                 }
-
+ 
                 const allDias = [...document.querySelectorAll('#diasContainer input[type="checkbox"]')].map(cb => cb.dataset.dia);
-
+ 
                 if (selectedDias.length === allDias.length) {
                     // Todos los días: usar lista pre-armada, filtrando extras excluidos
                     for (const [cat, items] of Object.entries(sourceList)) {
@@ -3205,7 +3215,7 @@
                         }
                     });
                     itemsToImport['Supermercado 🏪'] = combinedIngredients;
-
+ 
                     // Agregar categorías extras seleccionadas de la lista original
                     for (const extraCat of selectedExtras) {
                         if (sourceList[extraCat]) {
@@ -3220,12 +3230,12 @@
                     const index = parseInt(cb.id.replace('plato_', ''));
                     if (!isNaN(index)) selectedIndices.push(index);
                 });
-
+ 
                 if (selectedIndices.length === 0) {
                     showToast('Seleccioná al menos un plato', 'warning');
                     return;
                 }
-
+ 
                 const combinedIngredients = [];
                 selectedIndices.forEach(index => {
                     const plato = data.platos[index];
@@ -3234,7 +3244,7 @@
                     }
                 });
                 itemsToImport['Supermercado 🏪'] = combinedIngredients;
-
+ 
                 // Agregar categorías extras
                 for (const extraCat of selectedExtras) {
                     if (sourceList[extraCat]) {
@@ -3249,13 +3259,12 @@
                     }
                 }
             }
-
+ 
             // Construir itemsToImport wrapper para createWeekFromImport
             const importWrapper = {};
             importWrapper[listType] = itemsToImport;
-
+ 
             await createWeekFromImport(data, importWrapper);
-        }
 
         // ---- Crear semana desde datos importados ----
 
