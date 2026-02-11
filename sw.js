@@ -1,6 +1,6 @@
 // This is the service worker file for caching and offline functionality
 
-const CACHE_NAME = 'my-site-cache-v1';
+const CACHE_NAME = 'my-site-cache-v2';
 const urlsToCache = [
     '/index.html',
     '/styles/main.css',
