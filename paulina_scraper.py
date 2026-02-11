@@ -861,7 +861,26 @@ class FirebaseUploader:
         except Exception as e:
             print(f"❌ Error subiendo a Firebase: {e}")
             return False
-
+ 
+    def upload_especial(self, slug: str, data: dict) -> bool:
+        """Sube un menú especial a Firestore con ID basado en slug."""
+        if not self.db:
+            print("❌ Firebase no está inicializado")
+            return False
+ 
+        try:
+            doc_id = f'especial_{slug}'
+            doc_ref = self.db.collection('paulina_menus').document(doc_id)
+            doc_ref.set({
+                **data,
+                'uploadedAt': datetime.now().isoformat()
+            })
+            print(f"✅ Menú especial '{slug}' subido a Firebase")
+            return True
+ 
+        except Exception as e:
+            print(f"❌ Error subiendo menú especial a Firebase: {e}")
+            return False
 
 def main():
     import argparse
