@@ -3133,12 +3133,19 @@ const snapshot = await db.collection('paulina_menus').get();
             const container = document.getElementById('diasContainer');
             container.innerHTML = '';
 
-            const diasOrden = ['Lunes', 'Martes', 'Miércoles', 'Miercoles', 'Jueves', 'Viernes', 'Sábado', 'Sabado', 'Domingo'];
+            // Orden de días de la semana (solo versión canónica)
+            const diasOrden = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+            
+            // Normalizar día (remover acentos para comparación)
+            const normalizeDia = (dia) => {
+                return dia.toLowerCase()
+                    .normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+            };
             
             // Ordenar días según diasOrden
             const diasDisponibles = Object.keys(recetas).sort((a, b) => {
-                const indexA = diasOrden.findIndex(d => d.toLowerCase() === a.toLowerCase());
-                const indexB = diasOrden.findIndex(d => d.toLowerCase() === b.toLowerCase());
+                const indexA = diasOrden.findIndex(d => normalizeDia(d) === normalizeDia(a));
+                const indexB = diasOrden.findIndex(d => normalizeDia(d) === normalizeDia(b));
                 return indexA - indexB;
             });
 
@@ -3296,11 +3303,7 @@ const snapshot = await db.collection('paulina_menus').get();
             }
             
             // Si no se puede expresar como fracción, usar decimal
-            if (whole === 0) {
-                return frac.toFixed(2).replace(/\.?0+$/, '');
-            } else {
-                return `${whole} ${frac.toFixed(2).replace(/\.?0+$/, '')}`;
-            }
+            return qty.toFixed(2).replace(/\.?0+$/, '');
         }
 
         function combineIngredients(ingredientsList) {
