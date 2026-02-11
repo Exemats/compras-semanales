@@ -3138,10 +3138,6 @@
                     const historicalHeader = document.createElement('div');
                     historicalHeader.className = 'menu-section-header collapsible collapsed';
                     historicalHeader.innerHTML = '<span class="menu-section-toggle">▼</span> 📚 Histórico';
-                    historicalHeader.onclick = function() {
-                        this.classList.toggle('collapsed');
-                        historicalContent.classList.toggle('collapsed');
-                    };
                     listEl.appendChild(historicalHeader);
                     
                     const historicalContent = document.createElement('div');
@@ -3150,6 +3146,12 @@
                         historicalContent.appendChild(createMenuCard(data));
                     });
                     listEl.appendChild(historicalContent);
+                    
+                    // Set up click handler after both elements are created
+                    historicalHeader.onclick = function() {
+                        this.classList.toggle('collapsed');
+                        historicalContent.classList.toggle('collapsed');
+                    };
                 }
             } catch (error) {
                 console.error('Error buscando semanas:', error);
