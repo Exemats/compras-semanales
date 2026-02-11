@@ -3158,10 +3158,15 @@
                     
                     // Toggle function for both click and keyboard events
                     const toggleSection = function() {
-                        const nowCollapsed = historicalHeader.classList.toggle('collapsed');
+                        // classList.toggle() returns true if the class was ADDED, false if REMOVED
+                        // Starting state: classList has 'collapsed', so element is collapsed
+                        // First click: toggle() removes 'collapsed' and returns false → element expands
+                        // Second click: toggle() adds 'collapsed' and returns true → element collapses
+                        const classWasAdded = historicalHeader.classList.toggle('collapsed');
                         historicalContent.classList.toggle('collapsed');
-                        // toggle() returns true if class was added (now collapsed), false if removed (now expanded)
-                        historicalHeader.setAttribute('aria-expanded', nowCollapsed ? 'false' : 'true');
+                        // If class was added (true), section is now collapsed → aria-expanded='false'
+                        // If class was removed (false), section is now expanded → aria-expanded='true'
+                        historicalHeader.setAttribute('aria-expanded', classWasAdded ? 'false' : 'true');
                     };
                     
                     // Set up click handler
