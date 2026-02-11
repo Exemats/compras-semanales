@@ -3137,7 +3137,16 @@
                 if (historicalMenus.length > 0) {
                     const historicalHeader = document.createElement('div');
                     historicalHeader.className = 'menu-section-header collapsible collapsed';
-                    historicalHeader.innerHTML = '<span class="menu-section-toggle">▼</span> 📚 Histórico';
+                    historicalHeader.setAttribute('role', 'button');
+                    historicalHeader.setAttribute('tabindex', '0');
+                    historicalHeader.setAttribute('aria-expanded', 'false');
+                    
+                    const toggleIcon = document.createElement('span');
+                    toggleIcon.className = 'menu-section-toggle';
+                    toggleIcon.textContent = '▼';
+                    historicalHeader.appendChild(toggleIcon);
+                    historicalHeader.appendChild(document.createTextNode(' 📚 Histórico'));
+                    
                     listEl.appendChild(historicalHeader);
                     
                     const historicalContent = document.createElement('div');
@@ -3147,10 +3156,22 @@
                     });
                     listEl.appendChild(historicalContent);
                     
-                    // Set up click handler after both elements are created
-                    historicalHeader.onclick = function() {
-                        this.classList.toggle('collapsed');
+                    // Toggle function for both click and keyboard events
+                    const toggleSection = function() {
+                        const isCollapsed = historicalHeader.classList.toggle('collapsed');
                         historicalContent.classList.toggle('collapsed');
+                        historicalHeader.setAttribute('aria-expanded', isCollapsed ? 'false' : 'true');
+                    };
+                    
+                    // Set up click handler
+                    historicalHeader.onclick = toggleSection;
+                    
+                    // Set up keyboard handler for accessibility
+                    historicalHeader.onkeydown = function(e) {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            toggleSection();
+                        }
                     };
                 }
             } catch (error) {
