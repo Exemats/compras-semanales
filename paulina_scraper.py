@@ -1011,11 +1011,16 @@ Descarga masiva:
             json.dump(datos, f, ensure_ascii=False, indent=2)
         print(f"📄 JSON guardado: {output_path}")
 
-        # Subir a Firebase si tiene número de semana
-        if not args.local and extractor.semana:
+                # Subir a Firebase
+        if not args.local:
             uploader = FirebaseUploader(args.credentials)
             if uploader and uploader.db:
-                uploader.upload(extractor.semana, datos)
+                if extractor.semana:
+                    uploader.upload(extractor.semana, datos)
+                else:
+                    # Menú especial sin número de semana: usar slug del título
+                    slug = re.sub(r'[^\w]+', '_', extractor.titulo.lower()).strip('_')[:40]
+                    uploader.upload_especial(slug, datos)
 
         print(f"\n✅ {datos['titulo']}")
         if datos.get('fechas'):
