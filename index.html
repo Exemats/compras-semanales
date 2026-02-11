@@ -3127,6 +3127,42 @@ const snapshot = await db.collection('paulina_menus').get();
                 container.appendChild(div);
             });
         }
+        // ---- Días (para menús semanales con recetas por día) ----
+
+        function renderDiasCheckboxes(recetas) {
+            const container = document.getElementById('diasContainer');
+            container.innerHTML = '';
+
+            const diasOrden = ['Lunes', 'Martes', 'Miércoles', 'Miercoles', 'Jueves', 'Viernes', 'Sábado', 'Sabado', 'Domingo'];
+            
+            // Ordenar días según diasOrden
+            const diasDisponibles = Object.keys(recetas).sort((a, b) => {
+                const indexA = diasOrden.findIndex(d => d.toLowerCase() === a.toLowerCase());
+                const indexB = diasOrden.findIndex(d => d.toLowerCase() === b.toLowerCase());
+                return indexA - indexB;
+            });
+
+            diasDisponibles.forEach((dia) => {
+                const receta = recetas[dia];
+                const ingredientCount = receta.ingredientes ? receta.ingredientes.length : 0;
+                const diaDiv = document.createElement('div');
+                diaDiv.className = 'check-row';
+                diaDiv.onclick = function(e) {
+                    if (e.target.tagName !== 'INPUT') {
+                        const cb = this.querySelector('input[type="checkbox"]');
+                        cb.checked = !cb.checked;
+                    }
+                };
+                diaDiv.innerHTML = `
+                    <input type="checkbox" id="dia_${dia}" data-dia="${dia}" checked>
+                    <label for="dia_${dia}">
+                        <div class="check-row-title">${dia}</div>
+                        <div class="check-row-subtitle">${receta.nombre || 'Sin nombre'} · ${ingredientCount} ingredientes</div>
+                    </label>
+                `;
+                container.appendChild(diaDiv);
+            });
+        }
 
         function selectAllDias() {
             document.querySelectorAll('#diasContainer input[type="checkbox"]').forEach(cb => cb.checked = true);
@@ -3198,6 +3234,124 @@ const snapshot = await db.collection('paulina_menus').get();
             return selected;
         }
 
+        // ---- Sumar cantidades de ingredientes ----
+
+        function parseQuantity(text) {
+            // Parsea cantidades como "1", "1/2", "1 1/2", "0.5", etc.
+            // Retorna un número decimal
+            text = text.trim();
+            
+            // Caso: "1 1/2" (número mixto)
+            const mixedMatch = text.match(/^(\d+)\s+(\d+)\/(\d+)$/);
+            if (mixedMatch) {
+                const whole = parseInt(mixedMatch[1]);
+                const num = parseInt(mixedMatch[2]);
+                const den = parseInt(mixedMatch[3]);
+                return whole + (num / den);
+            }
+            
+            // Caso: "1/2" (fracción)
+            const fracMatch = text.match(/^(\d+)\/(\d+)$/);
+            if (fracMatch) {
+                const num = parseInt(fracMatch[1]);
+                const den = parseInt(fracMatch[2]);
+                return num / den;
+            }
+            
+            // Caso: "1" o "1.5" (decimal)
+            const numMatch = text.match(/^(\d+\.?\d*)$/);
+            if (numMatch) {
+                return parseFloat(numMatch[1]);
+            }
+            
+            return null;
+        }
+
+        function formatQuantity(qty) {
+            // Formatea un número decimal como "1", "1/2", "1 1/2", etc.
+            if (qty === 0) return '0';
+            
+            const whole = Math.floor(qty);
+            const frac = qty - whole;
+            
+            if (frac === 0) {
+                return whole.toString();
+            }
+            
+            // Intentar convertir decimal a fracción común
+            const fractions = [
+                [1, 2], [1, 3], [2, 3], [1, 4], [3, 4],
+                [1, 5], [2, 5], [3, 5], [4, 5],
+                [1, 8], [3, 8], [5, 8], [7, 8]
+            ];
+            
+            for (const [num, den] of fractions) {
+                if (Math.abs(frac - (num / den)) < 0.01) {
+                    if (whole === 0) {
+                        return `${num}/${den}`;
+                    } else {
+                        return `${whole} ${num}/${den}`;
+                    }
+                }
+            }
+            
+            // Si no se puede expresar como fracción, usar decimal
+            if (whole === 0) {
+                return frac.toFixed(2).replace(/\.?0+$/, '');
+            } else {
+                return `${whole} ${frac.toFixed(2).replace(/\.?0+$/, '')}`;
+            }
+        }
+
+        function combineIngredients(ingredientsList) {
+            // Combina y suma ingredientes similares
+            // ingredientsList: array de strings como "1 limon", "1/2 limon"
+            
+            const ingredientMap = new Map();
+            
+            ingredientsList.forEach(ingredient => {
+                if (!ingredient || typeof ingredient !== 'string') return;
+                
+                const text = ingredient.trim();
+                if (!text) return;
+                
+                // Intentar extraer cantidad del inicio
+                const qtyMatch = text.match(/^([\d\s\/]+)\s+(.+)$/);
+                
+                if (qtyMatch) {
+                    const qtyStr = qtyMatch[1];
+                    const itemName = qtyMatch[2].toLowerCase();
+                    const qty = parseQuantity(qtyStr);
+                    
+                    if (qty !== null) {
+                        // Tenemos una cantidad válida
+                        const existing = ingredientMap.get(itemName) || { qty: 0, original: itemName };
+                        existing.qty += qty;
+                        ingredientMap.set(itemName, existing);
+                        return;
+                    }
+                }
+                
+                // No se pudo parsear cantidad, agregar tal cual (sin duplicar)
+                const itemNameLower = text.toLowerCase();
+                if (!ingredientMap.has(itemNameLower)) {
+                    ingredientMap.set(itemNameLower, { qty: null, original: text });
+                }
+            });
+            
+            // Convertir de vuelta a array de strings
+            const result = [];
+            ingredientMap.forEach(({ qty, original }) => {
+                if (qty !== null) {
+                    result.push(`${formatQuantity(qty)} ${original}`);
+                } else {
+                    result.push(original);
+                }
+            });
+            
+            return result;
+        }
+
         // ---- Ejecutar la importación según la configuración modular ----
  
         async function executeImport() {
@@ -3249,16 +3403,17 @@ const snapshot = await db.collection('paulina_menus').get();
                         }
                     }
                 } else {
-                    // Días específicos: combinar ingredientes de esos días
-                    const combinedIngredients = [];
+                    // Días específicos: combinar y sumar ingredientes de esos días
+                    const allIngredients = [];
                     selectedDias.forEach(dia => {
                         const receta = data.recetas[dia];
                         if (receta && receta.ingredientes) {
-                            combinedIngredients.push(...receta.ingredientes);
+                            allIngredients.push(...receta.ingredientes);
                         }
                     });
+                    const combinedIngredients = combineIngredients(allIngredients);
                     itemsToImport['Supermercado 🏪'] = combinedIngredients;
- 
+
                     // Agregar categorías extras seleccionadas de la lista original
                     for (const extraCat of selectedExtras) {
                         if (sourceList[extraCat]) {
@@ -3278,14 +3433,15 @@ const snapshot = await db.collection('paulina_menus').get();
                     showToast('Seleccioná al menos un plato', 'warning');
                     return;
                 }
- 
-                const combinedIngredients = [];
+
+                const allIngredients = [];
                 selectedIndices.forEach(index => {
                     const plato = data.platos[index];
                     if (plato && plato.ingredientes) {
-                        combinedIngredients.push(...plato.ingredientes);
+                        allIngredients.push(...plato.ingredientes);
                     }
                 });
+                const combinedIngredients = combineIngredients(allIngredients);
                 itemsToImport['Supermercado 🏪'] = combinedIngredients;
  
                 // Agregar categorías extras
