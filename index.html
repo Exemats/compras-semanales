@@ -226,205 +226,6 @@
             color: var(--text-light);
         }
 
-        /* ==================== IMPORT MODAL ==================== */
-        .import-modal {
-            max-width: 420px;
-            max-height: 85vh;
-            overflow-y: auto;
-            position: relative;
-        }
-
-        .import-tabs {
-            display: flex;
-            gap: 4px;
-            margin-bottom: 16px;
-            background: var(--bg);
-            padding: 4px;
-            border-radius: 10px;
-        }
-
-        .import-tab {
-            flex: 1;
-            padding: 8px 12px;
-            border: none;
-            background: transparent;
-            border-radius: 8px;
-            font-size: 0.8rem;
-            cursor: pointer;
-            color: var(--text-light);
-        }
-
-        .import-tab.active {
-            background: white;
-            color: var(--primary);
-            font-weight: 600;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
-
-        .import-content {
-            display: none;
-        }
-
-        .import-content.active {
-            display: block;
-        }
-
-        .import-hint {
-            font-size: 0.8rem;
-            color: var(--text-light);
-            margin-bottom: 12px;
-        }
-
-        .available-weeks {
-            max-height: 200px;
-            overflow-y: auto;
-        }
-
-        .week-option {
-            display: flex;
-            align-items: center;
-            padding: 12px;
-            border: 2px solid var(--border);
-            border-radius: 10px;
-            margin-bottom: 8px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .week-option:hover {
-            border-color: var(--primary);
-            background: #fff5f5;
-        }
-
-        .week-option .week-info {
-            flex: 1;
-        }
-
-        .week-option .week-name {
-            font-weight: 600;
-            font-size: 0.95rem;
-        }
-
-        .week-option .week-dates {
-            font-size: 0.8rem;
-            color: var(--text-light);
-        }
-
-        .week-option .week-count {
-            font-size: 0.75rem;
-            color: var(--primary);
-            background: #fff0f0;
-            padding: 4px 8px;
-            border-radius: 12px;
-        }
-
-        .scraper-controls {
-            display: flex;
-            gap: 8px;
-        }
-
-        .scraper-controls input {
-            flex: 1;
-            margin-bottom: 0;
-        }
-
-        .scraper-controls button {
-            flex-shrink: 0;
-        }
-
-        .scraper-status {
-            margin-top: 12px;
-            padding: 12px;
-            border-radius: 10px;
-            font-size: 0.85rem;
-            display: none;
-        }
-
-        .scraper-status.loading {
-            display: block;
-            background: #e3f2fd;
-            color: #1565c0;
-        }
-
-        .scraper-status.success {
-            display: block;
-            background: #e8f5e9;
-            color: #2e7d32;
-        }
-
-        .scraper-status.error {
-            display: block;
-            background: #ffebee;
-            color: #c62828;
-        }
-
-        #importJsonInput {
-            width: 100%;
-            height: 120px;
-            padding: 12px;
-            border: 2px solid var(--border);
-            border-radius: 10px;
-            font-size: 0.85rem;
-            resize: none;
-            font-family: monospace;
-        }
-
-        /* Preview */
-        .import-preview {
-            margin-top: 16px;
-            padding: 16px;
-            background: var(--bg);
-            border-radius: 12px;
-        }
-
-        .import-preview h4 {
-            margin-bottom: 12px;
-            font-size: 0.95rem;
-        }
-
-        .preview-header {
-            margin-bottom: 12px;
-            padding-bottom: 12px;
-            border-bottom: 1px solid var(--border);
-        }
-
-        .preview-header .title {
-            font-weight: 600;
-            font-size: 1rem;
-        }
-
-        .preview-header .dates {
-            font-size: 0.85rem;
-            color: var(--text-light);
-        }
-
-        .preview-categories {
-            max-height: 200px;
-            overflow-y: auto;
-        }
-
-        .preview-category {
-            margin-bottom: 8px;
-        }
-
-        .preview-category .cat-name {
-            font-weight: 600;
-            font-size: 0.85rem;
-            margin-bottom: 4px;
-        }
-
-        .preview-category .cat-items {
-            font-size: 0.8rem;
-            color: var(--text-light);
-            padding-left: 12px;
-        }
-
-        .preview-actions {
-            display: flex;
-            gap: 8px;
-            margin-top: 16px;
-        }
-
         .no-weeks {
             text-align: center;
             padding: 24px;
@@ -433,6 +234,322 @@
 
         .no-weeks button {
             margin-top: 12px;
+        }
+
+        /* ==================== IMPORT MODAL ==================== */
+        .import-modal {
+            max-width: 380px;
+            position: relative;
+            max-height: 85vh;
+            overflow-y: auto;
+        }
+
+        .import-step-title {
+            margin-bottom: 20px;
+            font-size: 1.2rem;
+        }
+
+        .import-step-title.sm {
+            margin-bottom: 16px;
+            font-size: 1.1rem;
+        }
+
+        .import-step-title.xs {
+            margin-bottom: 4px;
+            font-size: 1.1rem;
+        }
+
+        .import-option-btn {
+            width: 100%;
+            padding: 16px;
+            margin-bottom: 12px;
+            background: var(--bg);
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            font-size: 1rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .import-option-btn:active {
+            border-color: var(--primary);
+        }
+
+        .import-option-icon {
+            font-size: 1.5rem;
+        }
+
+        .import-option-text {
+            text-align: left;
+        }
+
+        .import-option-name {
+            font-weight: 600;
+        }
+
+        .import-option-desc {
+            font-size: 0.8rem;
+            color: var(--text-light);
+        }
+
+        .import-json-details {
+            margin-top: 4px;
+        }
+
+        .import-json-summary {
+            cursor: pointer;
+            color: var(--text-light);
+            font-size: 0.85rem;
+            padding: 8px 0;
+        }
+
+        .import-json-textarea {
+            width: 100%;
+            height: 80px;
+            padding: 12px;
+            border: 2px solid var(--border);
+            border-radius: 10px;
+            font-size: 0.9rem;
+            resize: none;
+            margin-top: 8px;
+        }
+
+        .import-full-btn {
+            width: 100%;
+            margin-top: 8px;
+        }
+
+        .import-cancel-btn {
+            width: 100%;
+            margin-top: 16px;
+        }
+
+        .import-loading {
+            text-align: center;
+            padding: 24px;
+            color: var(--text-light);
+        }
+
+        .import-weeks-list {
+            max-height: 320px;
+            overflow-y: auto;
+            margin-bottom: 16px;
+        }
+
+        .import-empty {
+            display: none;
+            text-align: center;
+            padding: 24px;
+        }
+
+        .import-empty-icon {
+            font-size: 2rem;
+            margin-bottom: 8px;
+        }
+
+        .import-empty-text {
+            color: var(--text-light);
+            font-size: 0.9rem;
+        }
+
+        .import-empty-hint {
+            color: var(--text-light);
+            font-size: 0.8rem;
+            margin-top: 4px;
+        }
+
+        .import-subtitle {
+            font-size: 0.8rem;
+            color: var(--text-light);
+            margin-bottom: 12px;
+        }
+
+        .import-hint-label {
+            font-size: 0.9rem;
+            color: var(--text-light);
+            margin-bottom: 8px;
+        }
+
+        .import-checklist {
+            max-height: 200px;
+            overflow-y: auto;
+            margin-bottom: 8px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+        }
+
+        .import-checklist.tall {
+            max-height: 180px;
+            margin-bottom: 12px;
+        }
+
+        .import-quick-btns {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .import-quick-btns.lg {
+            margin-bottom: 16px;
+        }
+
+        .import-quick-btn {
+            flex: 1;
+            padding: 8px;
+            font-size: 0.85rem;
+        }
+
+        .import-quick-btn.lg {
+            padding: 10px;
+            font-size: inherit;
+        }
+
+        .import-options {
+            margin-bottom: 16px;
+        }
+
+        .import-platos-info {
+            background: var(--bg);
+            padding: 12px;
+            border-radius: 10px;
+            margin-bottom: 12px;
+            font-size: 0.9rem;
+        }
+
+        /* Badges */
+        .badge {
+            padding: 2px 8px;
+            border-radius: 8px;
+            font-size: 0.7rem;
+            color: white;
+        }
+
+        .badge-primary { background: var(--primary); }
+        .badge-veggie { background: #4caf50; }
+        .badge-dias { background: #2196f3; }
+        .badge-platos { background: #ff9800; }
+
+        /* Week cards in import */
+        .week-card {
+            padding: 14px 12px;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: border-color 0.15s, background 0.15s;
+        }
+
+        .week-card:hover, .week-card:active {
+            border-color: var(--primary);
+        }
+
+        .week-card-title {
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        .week-card-dates {
+            font-size: 0.8rem;
+            color: var(--text-light);
+            margin-top: 2px;
+        }
+
+        .week-card-badges {
+            margin-top: 8px;
+            display: flex;
+            gap: 4px;
+            flex-wrap: wrap;
+        }
+
+        /* Import mode radio options */
+        .import-mode-label {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            margin-bottom: 8px;
+            cursor: pointer;
+        }
+
+        .import-mode-radio {
+            width: 20px;
+            height: 20px;
+            accent-color: var(--primary);
+        }
+
+        .import-mode-radio.veggie {
+            accent-color: #4caf50;
+        }
+
+        .import-mode-radio.platos {
+            accent-color: #ff9800;
+        }
+
+        .import-mode-info {
+            flex: 1;
+        }
+
+        .import-mode-name {
+            font-weight: 600;
+        }
+
+        .import-mode-desc {
+            font-size: 0.8rem;
+            color: var(--text-light);
+            margin-top: 2px;
+        }
+
+        /* Checkbox rows (dias / platos) */
+        .check-row {
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            border-bottom: 1px solid var(--border);
+            gap: 12px;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+
+        .check-row:last-child {
+            border-bottom: none;
+        }
+
+        .check-row input[type="checkbox"] {
+            width: 22px;
+            height: 22px;
+            cursor: pointer;
+            accent-color: var(--primary);
+        }
+
+        .check-row label {
+            flex: 1;
+            cursor: pointer;
+            pointer-events: none;
+        }
+
+        .check-row-title {
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        .check-row-subtitle {
+            font-size: 0.8rem;
+            color: var(--text-light);
+            margin-top: 2px;
+        }
+
+        .import-error-msg {
+            color: #dc2626;
+            text-align: center;
+            padding: 16px;
+        }
+
+        .import-info-msg {
+            color: var(--primary);
         }
 
         /* ==================== QUICK REGISTER ==================== */
@@ -991,11 +1108,6 @@
             padding: 14px 16px;
         }
 
-        .bottom-btn.secondary {
-            background: #f0f0f0;
-            color: var(--text);
-        }
-
         /* ==================== TOAST ==================== */
         .toast {
             position: fixed;
@@ -1021,6 +1133,7 @@
         .toast.success { background: var(--success); }
         .toast.error { background: #ef4444; }
         .toast.warning { background: var(--warning); }
+        .toast.info { background: var(--info); }
 
         /* ==================== EMPTY STATE ==================== */
         .empty-message {
@@ -1213,70 +1326,69 @@
             <div class="subtitle" id="headerSubtitle">Seleccioná una semana</div>
         </div>
 
-    <!-- Week Selector -->
-    <div class="week-selector">
-        <select id="weekDropdown" class="week-dropdown" onchange="selectWeek(this.value)">
-            <option value="">Cargando semanas...</option>
-        </select>
-        <button class="week-btn" onclick="openImportModal()" title="Nueva lista">➕</button>
-        <button class="week-btn danger" onclick="deleteCurrentWeek()" title="Eliminar semana">🗑️</button>
-        <button class="week-btn" onclick="forceSync()" title="Sincronizar" id="syncBtn">🔄</button>
-        <div class="sync-status" id="syncStatus" onclick="forceSync()">
-            <span>☁️</span> <span id="syncText">Local</span>
+        <!-- Week Selector -->
+        <div class="week-selector">
+            <select id="weekDropdown" class="week-dropdown" onchange="selectWeek(this.value)">
+                <option value="">Cargando semanas...</option>
+            </select>
+            <button class="week-btn" onclick="openImportModal()" title="Nueva lista">➕</button>
+            <button class="week-btn danger" onclick="deleteCurrentWeek()" title="Eliminar semana">🗑️</button>
+            <button class="week-btn" onclick="forceSync()" title="Sincronizar" id="syncBtn">🔄</button>
+            <div class="sync-status" id="syncStatus" onclick="forceSync()">
+                <span>☁️</span> <span id="syncText">Local</span>
+            </div>
         </div>
-    </div>
 
-
-    <!-- Quick Register -->
-    <div class="quick-register">
-        <div class="register-row">
-            <input type="text" 
-                   id="registerInput" 
-                   class="register-input" 
-                   placeholder="leche 2500, pan 1200..."
-                   autocomplete="off">
-            <button class="btn-register" onclick="processInput()">✓</button>
-            <button class="btn-voice" id="voiceBtn" onclick="toggleVoice()">🎤</button>
+        <!-- Quick Register -->
+        <div class="quick-register">
+            <div class="register-row">
+                <input type="text"
+                       id="registerInput"
+                       class="register-input"
+                       placeholder="leche 2500, pan 1200..."
+                       autocomplete="off">
+                <button class="btn-register" onclick="processInput()">✓</button>
+                <button class="btn-voice" id="voiceBtn" onclick="toggleVoice()">🎤</button>
+            </div>
+            <div class="register-hint">
+                💡 Escribí el producto y precio: <code>leche 2500</code> — Se tacha de la lista y suma al total
+            </div>
+            <div class="match-preview" id="matchPreview"></div>
         </div>
-        <div class="register-hint">
-            💡 Escribí el producto y precio: <code>leche 2500</code> — Se tacha de la lista y suma al total
+
+        <!-- Totals -->
+        <div class="totals-bar">
+            <div class="total-box">
+                <div class="value" id="totalSpent">$0</div>
+                <div class="label">Gastado</div>
+            </div>
+            <div class="total-box">
+                <div class="value pending" id="pendingCount">0</div>
+                <div class="label">Pendientes</div>
+            </div>
+            <div class="total-box">
+                <div class="value" id="boughtCount">0</div>
+                <div class="label">Comprados</div>
+            </div>
         </div>
-        <div class="match-preview" id="matchPreview"></div>
-    </div>
 
-    <!-- Totals -->
-    <div class="totals-bar">
-        <div class="total-box">
-            <div class="value" id="totalSpent">$0</div>
-            <div class="label">Gastado</div>
+        <!-- Gastos por persona -->
+        <div class="person-totals" id="personTotals"></div>
+
+        <!-- Search Bar -->
+        <div class="search-bar">
+            <input type="text" id="searchInput" placeholder="🔍 Buscar item..." oninput="filterList()">
+            <button class="clear-search" onclick="clearSearch()" id="clearSearchBtn">×</button>
         </div>
-        <div class="total-box">
-            <div class="value pending" id="pendingCount">0</div>
-            <div class="label">Pendientes</div>
+
+        <!-- List Type Tabs -->
+        <div class="list-tabs">
+            <button class="list-tab active" onclick="switchList('general', event)">🍖 General</button>
+            <button class="list-tab" onclick="switchList('veggie', event)">🥬 Vegetariana</button>
         </div>
-        <div class="total-box">
-            <div class="value" id="boughtCount">0</div>
-            <div class="label">Comprados</div>
-        </div>
-    </div>
 
-    <!-- Gastos por persona -->
-    <div class="person-totals" id="personTotals"></div>
-
-    <!-- Search Bar -->
-    <div class="search-bar">
-        <input type="text" id="searchInput" placeholder="🔍 Buscar item..." oninput="filterList()">
-        <button class="clear-search" onclick="clearSearch()" id="clearSearchBtn">×</button>
-    </div>
-
-    <!-- List Type Tabs -->
-    <div class="list-tabs">
-        <button class="list-tab active" onclick="switchList('general')">🍖 General</button>
-        <button class="list-tab" onclick="switchList('veggie')">🥬 Vegetariana</button>
-    </div>
-
-    <!-- Shopping List -->
-    <div class="list-container" id="listContainer"></div>
+        <!-- Shopping List -->
+        <div class="list-container" id="listContainer"></div>
 
         <!-- Bottom Actions -->
         <div class="bottom-bar">
@@ -1287,128 +1399,95 @@
         </div>
     </div><!-- End app-content -->
 
-    <!-- Modal Nueva Lista (unificado) -->
+    <!-- Modal Nueva Lista -->
     <div class="modal-overlay" id="importModal">
-        <div class="modal" style="max-width: 380px;">
+        <div class="modal import-modal">
             <!-- Paso 1: Seleccionar fuente -->
             <div id="importStep1">
-                <h3 style="margin-bottom: 20px; font-size: 1.2rem;">📝 Nueva lista</h3>
+                <h3 class="import-step-title">📝 Nueva lista</h3>
 
-                <!-- Opción 1: Lista vacía -->
-                <button onclick="createEmptyList()"
-                        style="width: 100%; padding: 16px; margin-bottom: 12px; background: var(--bg); border: 2px solid var(--border); border-radius: 12px; font-size: 1rem; cursor: pointer; display: flex; align-items: center; gap: 12px;">
-                    <span style="font-size: 1.5rem;">📋</span>
-                    <div style="text-align: left;">
-                        <div style="font-weight: 600;">Lista vacía</div>
-                        <div style="font-size: 0.8rem; color: var(--text-light);">Crear lista nueva desde cero</div>
+                <button class="import-option-btn" onclick="createEmptyList()">
+                    <span class="import-option-icon">📋</span>
+                    <div class="import-option-text">
+                        <div class="import-option-name">Lista vacía</div>
+                        <div class="import-option-desc">Crear lista nueva desde cero</div>
                     </div>
                 </button>
 
-                <!-- Opción 2: Importar de Paulina -->
-                <button onclick="browseAvailableWeeks()"
-                        style="width: 100%; padding: 16px; margin-bottom: 12px; background: var(--bg); border: 2px solid var(--border); border-radius: 12px; font-size: 1rem; cursor: pointer; display: flex; align-items: center; gap: 12px;">
-                    <span style="font-size: 1.5rem;">🍳</span>
-                    <div style="text-align: left;">
-                        <div style="font-weight: 600;">Importar de Paulina</div>
-                        <div style="font-size: 0.8rem; color: var(--text-light);">Menú semanal de Paulina Cocina</div>
+                <button class="import-option-btn" onclick="browseAvailableWeeks()">
+                    <span class="import-option-icon">🍳</span>
+                    <div class="import-option-text">
+                        <div class="import-option-name">Importar de Paulina</div>
+                        <div class="import-option-desc">Menú semanal de Paulina Cocina</div>
                     </div>
                 </button>
 
-                <!-- Opción 3: JSON (colapsado) -->
-                <details style="margin-top: 4px;">
-                    <summary style="cursor: pointer; color: var(--text-light); font-size: 0.85rem; padding: 8px 0;">
-                        Pegar JSON manualmente...
-                    </summary>
-                    <textarea id="importJsonInput"
-                              placeholder="Pegá el JSON del scraper aquí..."
-                              style="width: 100%; height: 80px; padding: 12px; border: 2px solid var(--border); border-radius: 10px; font-size: 0.9rem; resize: none; margin-top: 8px;"></textarea>
-                    <button onclick="loadFromJson()" class="modal-btn secondary" style="width: 100%; margin-top: 8px;">
+                <details class="import-json-details">
+                    <summary class="import-json-summary">Pegar JSON manualmente...</summary>
+                    <textarea id="importJsonInput" class="import-json-textarea"
+                              placeholder="Pegá el JSON del scraper aquí..."></textarea>
+                    <button onclick="loadFromJson()" class="modal-btn secondary import-full-btn">
                         Importar JSON
                     </button>
                 </details>
 
-                <button class="modal-btn secondary" onclick="closeImportModal()" style="width: 100%; margin-top: 16px;">
+                <button class="modal-btn secondary import-cancel-btn" onclick="closeImportModal()">
                     Cancelar
                 </button>
             </div>
 
             <!-- Paso 2: Semanas disponibles -->
             <div id="importStep2" style="display: none;">
-                <h3 style="margin-bottom: 16px; font-size: 1.1rem;">🍳 Semanas disponibles</h3>
+                <h3 class="import-step-title sm">🍳 Semanas disponibles</h3>
 
-                <div id="availableWeeksLoading" style="text-align: center; padding: 24px; color: var(--text-light);">
+                <div id="availableWeeksLoading" class="import-loading">
                     Cargando semanas...
                 </div>
 
-                <div id="availableWeeksList" style="max-height: 320px; overflow-y: auto; margin-bottom: 16px;">
+                <div id="availableWeeksList" class="import-weeks-list"></div>
+
+                <div id="availableWeeksEmpty" class="import-empty">
+                    <div class="import-empty-icon">📭</div>
+                    <div class="import-empty-text">No hay semanas disponibles.</div>
+                    <div class="import-empty-hint">Ejecutá el scraper primero para subir menús.</div>
                 </div>
 
-                <div id="availableWeeksEmpty" style="display: none; text-align: center; padding: 24px;">
-                    <div style="font-size: 2rem; margin-bottom: 8px;">📭</div>
-                    <div style="color: var(--text-light); font-size: 0.9rem;">No hay semanas disponibles.</div>
-                    <div style="color: var(--text-light); font-size: 0.8rem; margin-top: 4px;">Ejecutá el scraper primero para subir menús.</div>
-                </div>
-
-                <button class="modal-btn secondary" onclick="backToStep1()" style="width: 100%;">
+                <button class="modal-btn secondary import-full-btn" onclick="backToStep1()">
                     ← Atrás
                 </button>
             </div>
 
             <!-- Paso 3: Seleccionar qué importar de la semana elegida -->
             <div id="importStep3" style="display: none;">
-                <h3 style="margin-bottom: 4px; font-size: 1.1rem;" id="menuTitle">Menú</h3>
-                <p style="font-size: 0.8rem; color: var(--text-light); margin-bottom: 12px;" id="menuDates"></p>
+                <h3 class="import-step-title xs" id="menuTitle">Menú</h3>
+                <p class="import-subtitle" id="menuDates"></p>
 
-                <!-- Selección de días (si hay recetas por día) -->
+                <!-- Selección de días -->
                 <div id="diasSection" style="display: none;">
-                    <div style="font-size: 0.9rem; color: var(--text-light); margin-bottom: 8px;">Elegí qué días incluir:</div>
-                    <div id="diasContainer" style="max-height: 200px; overflow-y: auto; margin-bottom: 8px; border: 1px solid var(--border); border-radius: 10px;">
-                    </div>
-                    <div style="display: flex; gap: 8px; margin-bottom: 12px;">
-                        <button class="modal-btn secondary" style="flex: 1; padding: 8px; font-size: 0.85rem;" onclick="selectAllDias()">Todos</button>
-                        <button class="modal-btn secondary" style="flex: 1; padding: 8px; font-size: 0.85rem;" onclick="selectNoneDias()">Ninguno</button>
+                    <div class="import-hint-label">Elegí qué días incluir:</div>
+                    <div id="diasContainer" class="import-checklist"></div>
+                    <div class="import-quick-btns">
+                        <button class="modal-btn secondary import-quick-btn" onclick="selectAllDias()">Todos</button>
+                        <button class="modal-btn secondary import-quick-btn" onclick="selectNoneDias()">Ninguno</button>
                     </div>
                 </div>
 
                 <!-- Opciones de tipo de lista -->
-                <div id="importOptions" style="margin-bottom: 16px;">
-                </div>
+                <div id="importOptions" class="import-options"></div>
 
-                <!-- Lista de platos seleccionables (solo si hay platos y no hay recetas por día) -->
+                <!-- Lista de platos seleccionables -->
                 <div id="platosSection" style="display: none;">
-                    <div id="menuTypeInfo" style="background: var(--bg); padding: 12px; border-radius: 10px; margin-bottom: 12px; font-size: 0.9rem;">
-                    </div>
-                    <div id="platosContainer" style="max-height: 180px; overflow-y: auto; margin-bottom: 12px; border: 1px solid var(--border); border-radius: 10px;">
-                    </div>
-                    <div id="quickSelectBtns" style="display: flex; gap: 8px; margin-bottom: 16px;">
-                        <button class="modal-btn secondary" style="flex: 1; padding: 10px;" onclick="selectAllPlatos()">Todos</button>
-                        <button class="modal-btn secondary" style="flex: 1; padding: 10px;" onclick="selectNonePlatos()">Ninguno</button>
+                    <div id="menuTypeInfo" class="import-platos-info"></div>
+                    <div id="platosContainer" class="import-checklist tall"></div>
+                    <div id="quickSelectBtns" class="import-quick-btns lg">
+                        <button class="modal-btn secondary import-quick-btn lg" onclick="selectAllPlatos()">Todos</button>
+                        <button class="modal-btn secondary import-quick-btn lg" onclick="selectNonePlatos()">Ninguno</button>
                     </div>
                 </div>
 
                 <div class="modal-btns">
                     <button class="modal-btn secondary" onclick="backToStep2()">← Atrás</button>
-                    <button class="modal-btn primary" onclick="executeImport()" style="font-size: 1rem;">
-                        Crear lista
-                    </button>
-                </div>
-            </div>
-
-            <!-- Tab: Pegar JSON -->
-            <div class="import-content" id="tabJson">
-                <p class="import-hint">Pegá el JSON generado por el scraper:</p>
-                <textarea id="importJsonInput" placeholder="Pegá el JSON aquí..."></textarea>
-                <button class="modal-btn primary" onclick="importFromJson()" style="margin-top: 8px; width: 100%;">Importar JSON</button>
-            </div>
-
-            <!-- Preview de la lista -->
-            <div class="import-preview" id="importPreview" style="display: none;">
-                <h4>Vista previa</h4>
-                <div class="preview-header" id="previewHeader"></div>
-                <div class="preview-categories" id="previewCategories"></div>
-                <div class="preview-actions">
-                    <button class="modal-btn secondary" onclick="cancelPreview()">Cancelar</button>
-                    <button class="modal-btn primary" onclick="confirmImport()">✓ Importar</button>
+                    <button class="modal-btn primary" onclick="executeImport()">Crear lista</button>
                 </div>
             </div>
 
@@ -1566,118 +1645,6 @@
         let searchFilter = ''; // Filtro de búsqueda actual
         let itemIdCounter = 0;
 
-        const shoppingData = {
-            general: {
-                "Supermercado 🏪": [
-                    "1 manteca chica (3 cdas. aprox.)",
-                    "4 huevos",
-                    "1 lata de atún",
-                    "1 lata de choclo",
-                    "250g de queso parmesano rallado",
-                    "1 pote chico de queso crema",
-                    "1 paquete de pan rallado",
-                    "1 vino blanco",
-                    "1 flauta de pan",
-                    "1 paquete de fideos (300g)",
-                    "1 masa para tarta",
-                    "1 pote chico de crema de leche",
-                    "Leche",
-                    "1 paquete de pan de hamburguesas"
-                ],
-                "Carnes 🥩": [
-                    "500g de carne de cerdo",
-                    "100g de panceta"
-                ],
-                "Dietética 🥗": [
-                    "100g de nueces"
-                ],
-                "Verdulería 🥬": [
-                    "1 calabaza chica",
-                    "2 berenjenas",
-                    "4 cebollas de verdeo",
-                    "1 atado de espinaca",
-                    "4 papas",
-                    "400g de tomates maduros",
-                    "3 dientes de ajo",
-                    "3 zanahorias",
-                    "1 morrón rojo",
-                    "1 cebolla morada",
-                    "1 atado de albahaca",
-                    "2 puerros",
-                    "1 cebolla",
-                    "½ repollo morado",
-                    "1 atado de cilantro",
-                    "Jengibre",
-                    "1 chile o ají picante"
-                ],
-                "Yapa ⭐": [
-                    "550g de harina integral",
-                    "1 paquetito de levadura seca",
-                    "1 paquete de aceitunas",
-                    "Romero"
-                ],
-                "Comodín 👑": [
-                    "4 huevos extra",
-                    "1 pan lactal",
-                    "Mayonesa",
-                    "100g de lomito en fetas",
-                    "250g de tomates cherry"
-                ]
-            },
-            veggie: {
-                "Supermercado 🏪": [
-                    "1 manteca chica",
-                    "4 huevos",
-                    "400g de queso parmesano rallado",
-                    "1 pote chico de queso crema",
-                    "250g de lentejas",
-                    "1 paquete de pan rallado",
-                    "1 vino blanco",
-                    "1 flauta de pan",
-                    "Leche",
-                    "1 paquete de fideos (300g)",
-                    "1 pote chico de crema de leche",
-                    "1 masa para tarta",
-                    "1 paquete de pan de hamburguesas"
-                ],
-                "Dietética 🥗": [
-                    "250g de girgolas o shitake",
-                    "150g de nueces",
-                    "100g de tomates secos"
-                ],
-                "Verdulería 🥬": [
-                    "2 berenjenas",
-                    "1 calabaza chica",
-                    "4 zanahorias",
-                    "2 cebollas",
-                    "4 dientes de ajo",
-                    "1 morrón rojo",
-                    "4 cebollas de verdeo",
-                    "4 papas",
-                    "400g de tomates maduros",
-                    "1 cebolla morada",
-                    "1 atado de albahaca",
-                    "2 puerros",
-                    "½ repollo morado",
-                    "Jengibre",
-                    "1 atado de cilantro",
-                    "1 chile o ají picante",
-                    "250g de champiñones"
-                ],
-                "Yapa ⭐": [
-                    "550g de harina integral",
-                    "1 paquetito de levadura seca",
-                    "1 paquete de aceitunas",
-                    "Romero"
-                ],
-                "Comodín 👑": [
-                    "4 huevos extra",
-                    "1 pan lactal",
-                    "Mayonesa",
-                    "250g de tomates cherry"
-                ]
-            }
-        };
 
         // ==================== INIT ====================
         document.addEventListener('DOMContentLoaded', async function() {
@@ -1685,11 +1652,6 @@
             document.getElementById('registerInput').addEventListener('input', showPreview);
             document.getElementById('registerInput').addEventListener('keypress', e => {
                 if (e.key === 'Enter') processInput();
-            });
-
-            // Enter en el input de nueva semana
-            document.getElementById('weekNameInput').addEventListener('keypress', e => {
-                if (e.key === 'Enter') createNewWeek();
             });
 
             // Si no hay Firebase Auth configurado, mostrar la app directamente (modo local)
@@ -1739,32 +1701,6 @@
                 );
                 if (weekIds.length > 0) {
                     selectWeek(weekIds[0]);
-                }
-            }
-        }
-
-        function initializeItems() {
-            // Reinicializar items de la lista actual (dentro de la semana)
-            const data = shoppingData[currentList];
-
-            // Remover items actuales de este listType
-            for (const [id, item] of Object.entries(items)) {
-                if (item.listType === currentList) {
-                    delete items[id];
-                }
-            }
-
-            // Crear nuevos items
-            for (const [category, productList] of Object.entries(data)) {
-                for (const product of productList) {
-                    items[itemIdCounter++] = {
-                        name: product,
-                        category: category,
-                        bought: false,
-                        price: 0,
-                        isExtra: false,
-                        listType: currentList
-                    };
                 }
             }
         }
@@ -2149,20 +2085,19 @@
         }
 
         // ==================== ACTIONS ====================
-        function switchList(type) {
+        function switchList(type, event) {
             currentList = type;
             document.querySelectorAll('.list-tab').forEach(t => t.classList.remove('active'));
-            event.currentTarget.classList.add('active');
-
-            // Check if we have items for this list type
-            const hasItems = Object.values(items).some(i => i.listType === type);
-            if (!hasItems) {
-                initializeItems();
+            if (event && event.currentTarget) {
+                event.currentTarget.classList.add('active');
+            } else {
+                const tabIndex = type === 'general' ? 0 : 1;
+                document.querySelectorAll('.list-tab')[tabIndex]?.classList.add('active');
             }
 
             renderList();
             updateTotals();
-            saveData(); // Guardar cambio de lista
+            saveData();
         }
 
         function addExtra() {
@@ -2289,26 +2224,20 @@
             showToast('Item eliminado', 'success');
         }
 
-        function deleteItem(id, event) {
-            if (event) event.stopPropagation();
-            const strId = String(id);
-            if (items[strId]) {
-                delete items[strId];
-                renderList();
-                updateTotals();
-                saveData();
-                showToast('Item eliminado', 'success');
-            }
-        }
-
         function resetAll() {
-            if (!confirm('¿Reiniciar todo? Se borrarán los precios y compras.')) return;
-            
-            initializeItems();
+            if (!confirm('¿Reiniciar todo? Se borrarán todos los items de esta lista.')) return;
+
+            // Remover items de la lista actual
+            for (const [id, item] of Object.entries(items)) {
+                if (item.listType === currentList) {
+                    delete items[id];
+                }
+            }
+
             renderList();
             updateTotals();
             saveData();
-            showToast('Lista reiniciada', 'success');
+            showToast('Lista vaciada', 'success');
         }
 
         function shareWhatsApp() {
@@ -2691,43 +2620,6 @@
                 itemIdCounter: 0,
                 currentList: 'general'
             };
-
-            // Inicializar items por defecto
-            const data = shoppingData['general'];
-            let counter = 0;
-            const newItems = {};
-
-            for (const [category, productList] of Object.entries(data)) {
-                for (const product of productList) {
-                    newItems[counter++] = {
-                        name: product,
-                        category: category,
-                        bought: false,
-                        price: 0,
-                        isExtra: false,
-                        listType: 'general'
-                    };
-                }
-            }
-
-            // También inicializar veggie
-            const veggieData = shoppingData['veggie'];
-            for (const [category, productList] of Object.entries(veggieData)) {
-                for (const product of productList) {
-                    newItems[counter++] = {
-                        name: product,
-                        category: category,
-                        bought: false,
-                        price: 0,
-                        isExtra: false,
-                        listType: 'veggie'
-                    };
-                }
-            }
-
-            weeks[weekId].items = newItems;
-            weeks[weekId].itemIdCounter = counter;
-
             return weekId;
         }
 
@@ -2805,35 +2697,6 @@
             });
         }
 
-        function openNewWeekModal() {
-            document.getElementById('newWeekModal').classList.add('active');
-            document.getElementById('weekNameInput').value = '';
-            document.getElementById('weekNameInput').focus();
-        }
-
-        function closeNewWeekModal() {
-            document.getElementById('newWeekModal').classList.remove('active');
-        }
-
-        async function createNewWeek() {
-            const input = document.getElementById('weekNameInput');
-            const name = input.value.trim();
-
-            if (!name) {
-                showToast('Escribí un nombre para la semana', 'warning');
-                return;
-            }
-
-            const weekId = createWeekData(name);
-            await saveWeekToCloud(weekId);
-
-            closeNewWeekModal();
-            renderWeeksDropdown();
-            selectWeek(weekId);
-
-            showToast('Semana creada', 'success');
-        }
-
         async function deleteCurrentWeek() {
             if (!currentWeekId) return;
 
@@ -2902,7 +2765,17 @@
             const weekNum = Math.ceil((now - new Date(now.getFullYear(), 0, 1)) / (7 * 24 * 60 * 60 * 1000));
             const name = `Semana ${weekNum}`;
 
-            const weekId = createWeekData(name);
+            const weekId = 'week_' + Date.now();
+            weeks[weekId] = {
+                id: weekId,
+                name: name,
+                createdAt: Date.now(),
+                updatedAt: Date.now(),
+                items: {},
+                itemIdCounter: 0,
+                currentList: 'general'
+            };
+
             await saveWeekToCloud(weekId);
 
             closeImportModal();
@@ -2960,20 +2833,18 @@
                     const hasSeparateVeggie = veggieCount > 0 && JSON.stringify(data.veggie) !== JSON.stringify(data.general);
 
                     let badges = '';
-                    if (generalCount > 0) badges += `<span style="background: var(--primary); color: white; padding: 2px 8px; border-radius: 8px; font-size: 0.7rem;">General: ${generalCount}</span> `;
-                    if (hasSeparateVeggie) badges += `<span style="background: #4caf50; color: white; padding: 2px 8px; border-radius: 8px; font-size: 0.7rem;">Veggie: ${veggieCount}</span> `;
-                    if (recetasCount > 0) badges += `<span style="background: #2196f3; color: white; padding: 2px 8px; border-radius: 8px; font-size: 0.7rem;">${recetasCount} días</span> `;
-                    if (platosCount > 0 && recetasCount === 0) badges += `<span style="background: #ff9800; color: white; padding: 2px 8px; border-radius: 8px; font-size: 0.7rem;">${platosCount} platos</span>`;
+                    if (generalCount > 0) badges += `<span class="badge badge-primary">General: ${generalCount}</span> `;
+                    if (hasSeparateVeggie) badges += `<span class="badge badge-veggie">Veggie: ${veggieCount}</span> `;
+                    if (recetasCount > 0) badges += `<span class="badge badge-dias">${recetasCount} días</span> `;
+                    if (platosCount > 0 && recetasCount === 0) badges += `<span class="badge badge-platos">${platosCount} platos</span>`;
 
                     const card = document.createElement('div');
-                    card.style.cssText = 'padding: 14px 12px; border: 2px solid var(--border); border-radius: 12px; margin-bottom: 8px; cursor: pointer; transition: border-color 0.15s, background 0.15s;';
-                    card.onmouseenter = () => card.style.borderColor = 'var(--primary)';
-                    card.onmouseleave = () => card.style.borderColor = 'var(--border)';
+                    card.className = 'week-card';
                     card.onclick = () => selectWeekToImport(data);
                     card.innerHTML = `
-                        <div style="font-weight: 600; font-size: 0.95rem;">${data.titulo || 'Semana ' + data.semana}</div>
-                        ${data.fechas ? `<div style="font-size: 0.8rem; color: var(--text-light); margin-top: 2px;">${data.fechas}</div>` : ''}
-                        <div style="margin-top: 8px; display: flex; gap: 4px; flex-wrap: wrap;">${badges}</div>
+                        <div class="week-card-title">${data.titulo || 'Semana ' + data.semana}</div>
+                        ${data.fechas ? `<div class="week-card-dates">${data.fechas}</div>` : ''}
+                        <div class="week-card-badges">${badges}</div>
                     `;
                     listEl.appendChild(card);
                 });
@@ -3020,15 +2891,15 @@
 
             // Construir opciones de tipo de lista
             const optionsEl = document.getElementById('importOptions');
-            let html = '<div style="font-size: 0.9rem; color: var(--text-light); margin-bottom: 10px;">Tipo de lista:</div>';
+            let html = '<div class="import-hint-label">Tipo de lista:</div>';
 
             if (tieneGeneral) {
                 html += `
-                    <label style="display: flex; align-items: center; gap: 12px; padding: 12px; border: 2px solid var(--border); border-radius: 12px; margin-bottom: 8px; cursor: pointer;" onclick="selectImportMode('general')">
-                        <input type="radio" name="importMode" value="general" style="width: 20px; height: 20px; accent-color: var(--primary);" checked>
-                        <div style="flex: 1;">
-                            <div style="font-weight: 600;">Lista General</div>
-                            <div style="font-size: 0.8rem; color: var(--text-light); margin-top: 2px;">${tieneRecetas ? 'Ingredientes de los días seleccionados' : `Todos los menús (${generalCount} productos)`}</div>
+                    <label class="import-mode-label" onclick="selectImportMode('general')">
+                        <input type="radio" name="importMode" value="general" class="import-mode-radio" checked>
+                        <div class="import-mode-info">
+                            <div class="import-mode-name">Lista General</div>
+                            <div class="import-mode-desc">${tieneRecetas ? 'Ingredientes de los días seleccionados' : `Todos los menús (${generalCount} productos)`}</div>
                         </div>
                     </label>
                 `;
@@ -3036,31 +2907,30 @@
 
             if (hasSeparateVeggie) {
                 html += `
-                    <label style="display: flex; align-items: center; gap: 12px; padding: 12px; border: 2px solid var(--border); border-radius: 12px; margin-bottom: 8px; cursor: pointer;" onclick="selectImportMode('veggie')">
-                        <input type="radio" name="importMode" value="veggie" style="width: 20px; height: 20px; accent-color: #4caf50;">
-                        <div style="flex: 1;">
-                            <div style="font-weight: 600;">Lista Vegetariana</div>
-                            <div style="font-size: 0.8rem; color: var(--text-light); margin-top: 2px;">Versión sin carnes (${veggieCount} productos)</div>
+                    <label class="import-mode-label" onclick="selectImportMode('veggie')">
+                        <input type="radio" name="importMode" value="veggie" class="import-mode-radio veggie">
+                        <div class="import-mode-info">
+                            <div class="import-mode-name">Lista Vegetariana</div>
+                            <div class="import-mode-desc">Versión sin carnes (${veggieCount} productos)</div>
                         </div>
                     </label>
                 `;
             }
 
-            // Solo mostrar opción de platos si hay platos Y no hay recetas por día
             if (tienePlatos && !tieneRecetas) {
                 html += `
-                    <label style="display: flex; align-items: center; gap: 12px; padding: 12px; border: 2px solid var(--border); border-radius: 12px; margin-bottom: 8px; cursor: pointer;" onclick="selectImportMode('platos')">
-                        <input type="radio" name="importMode" value="platos" style="width: 20px; height: 20px; accent-color: #ff9800;" ${!tieneGeneral ? 'checked' : ''}>
-                        <div style="flex: 1;">
-                            <div style="font-weight: 600;">Elegir platos individuales</div>
-                            <div style="font-size: 0.8rem; color: var(--text-light); margin-top: 2px;">Seleccioná qué platos querés (${data.platos.length} disponibles)</div>
+                    <label class="import-mode-label" onclick="selectImportMode('platos')">
+                        <input type="radio" name="importMode" value="platos" class="import-mode-radio platos" ${!tieneGeneral ? 'checked' : ''}>
+                        <div class="import-mode-info">
+                            <div class="import-mode-name">Elegir platos individuales</div>
+                            <div class="import-mode-desc">Seleccioná qué platos querés (${data.platos.length} disponibles)</div>
                         </div>
                     </label>
                 `;
             }
 
             if (!tieneGeneral && !tienePlatos && !tieneRecetas) {
-                html = '<div style="color: var(--danger); text-align: center; padding: 16px;">No se encontraron datos importables en esta semana.</div>';
+                html = '<div class="import-error-msg">No se encontraron datos importables en esta semana.</div>';
             }
 
             optionsEl.innerHTML = html;
@@ -3103,7 +2973,7 @@
                 const receta = recetas[dia];
                 const ingredientCount = receta.ingredientes ? receta.ingredientes.length : 0;
                 const diaDiv = document.createElement('div');
-                diaDiv.style.cssText = 'display: flex; align-items: center; padding: 12px; border-bottom: 1px solid var(--border); gap: 12px; cursor: pointer; transition: background 0.15s;';
+                diaDiv.className = 'check-row';
                 diaDiv.onclick = function(e) {
                     if (e.target.tagName !== 'INPUT') {
                         const cb = this.querySelector('input[type="checkbox"]');
@@ -3111,11 +2981,10 @@
                     }
                 };
                 diaDiv.innerHTML = `
-                    <input type="checkbox" id="dia_${dia}" data-dia="${dia}" checked
-                           style="width: 22px; height: 22px; cursor: pointer; accent-color: var(--primary);">
-                    <label for="dia_${dia}" style="flex: 1; cursor: pointer; pointer-events: none;">
-                        <div style="font-weight: 600; font-size: 0.95rem;">${dia}</div>
-                        <div style="font-size: 0.8rem; color: var(--text-light); margin-top: 2px;">${receta.nombre || 'Menú del día'} (${ingredientCount} ing.)</div>
+                    <input type="checkbox" id="dia_${dia}" data-dia="${dia}" checked>
+                    <label for="dia_${dia}">
+                        <div class="check-row-title">${dia}</div>
+                        <div class="check-row-subtitle">${receta.nombre || 'Menú del día'} (${ingredientCount} ing.)</div>
                     </label>
                 `;
                 container.appendChild(diaDiv);
@@ -3137,14 +3006,12 @@
             const typeInfo = document.getElementById('menuTypeInfo');
             container.innerHTML = '';
 
-            typeInfo.innerHTML = `
-                <div style="color: var(--primary);">Seleccioná los platos que querés incluir:</div>
-            `;
+            typeInfo.innerHTML = `<div class="import-info-msg">Seleccioná los platos que querés incluir:</div>`;
 
             data.platos.forEach((plato, index) => {
                 const ingredientCount = plato.ingredientes ? plato.ingredientes.length : 0;
                 const platoDiv = document.createElement('div');
-                platoDiv.style.cssText = 'display: flex; align-items: center; padding: 14px 12px; border-bottom: 1px solid var(--border); gap: 12px; cursor: pointer; transition: background 0.15s;';
+                platoDiv.className = 'check-row';
                 platoDiv.onclick = function(e) {
                     if (e.target.tagName !== 'INPUT') {
                         const cb = this.querySelector('input[type="checkbox"]');
@@ -3152,10 +3019,10 @@
                     }
                 };
                 platoDiv.innerHTML = `
-                    <input type="checkbox" id="plato_${index}" checked style="width: 22px; height: 22px; cursor: pointer; accent-color: var(--primary);">
-                    <label for="plato_${index}" style="flex: 1; cursor: pointer; pointer-events: none;">
-                        <div style="font-weight: 600; font-size: 0.95rem;">${index + 1}. ${plato.nombre || 'Plato ' + (index + 1)}</div>
-                        <div style="font-size: 0.8rem; color: var(--text-light); margin-top: 2px;">${ingredientCount} ingredientes</div>
+                    <input type="checkbox" id="plato_${index}" checked>
+                    <label for="plato_${index}">
+                        <div class="check-row-title">${index + 1}. ${plato.nombre || 'Plato ' + (index + 1)}</div>
+                        <div class="check-row-subtitle">${ingredientCount} ingredientes</div>
                     </label>
                 `;
                 container.appendChild(platoDiv);
@@ -3197,14 +3064,6 @@
             return selected;
         }
 
-        function getAllDias() {
-            const all = [];
-            document.querySelectorAll('#diasContainer input[type="checkbox"]').forEach(cb => {
-                all.push(cb.dataset.dia);
-            });
-            return all;
-        }
-
         // ---- Ejecutar la importación según el modo elegido ----
 
         async function executeImport() {
@@ -3221,7 +3080,7 @@
                 if (tieneRecetas) {
                     // Verificar qué días están seleccionados
                     const selectedDias = getSelectedDias();
-                    const allDias = getAllDias();
+                    const allDias = [...document.querySelectorAll('#diasContainer input[type="checkbox"]')].map(cb => cb.dataset.dia);
 
                     if (selectedDias.length === 0) {
                         showToast('Seleccioná al menos un día', 'warning');
@@ -3364,11 +3223,6 @@
             showToast(msg, 'success');
         }
 
-        // Mantener compatibilidad con importación directa (legacy)
-        async function importFromPaulina() {
-            openImportModal();
-        }
-
         function mapCategoryName(category) {
             // Mapear nombres de categoría del scraper a los de la app
             const lower = category.toLowerCase();
@@ -3387,25 +3241,6 @@
             return category;
         }
 
-        // Función para que el scraper pueda subir datos directamente
-        async function uploadPaulinaMenu(weekNumber, data) {
-            if (!firebaseReady || !db) {
-                console.error('Firebase no disponible');
-                return false;
-            }
-
-            try {
-                await db.collection('paulina_menus').doc('semana_' + weekNumber).set({
-                    ...data,
-                    uploadedAt: Date.now()
-                });
-                console.log('Menu semana ' + weekNumber + ' subido correctamente');
-                return true;
-            } catch (error) {
-                console.error('Error subiendo menú:', error);
-                return false;
-            }
-        }
     </script>
 </body>
 </html>
