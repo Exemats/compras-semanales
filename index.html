@@ -367,6 +367,37 @@
             margin-top: 0;
         }
 
+        .menu-section-header.collapsible {
+            cursor: pointer;
+            user-select: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .menu-section-header.collapsible:hover {
+            color: var(--text);
+        }
+
+        .menu-section-header.collapsible:focus-visible {
+            outline: 2px solid var(--primary);
+            outline-offset: 2px;
+            border-radius: 4px;
+        }
+
+        .menu-section-toggle {
+            font-size: 0.875rem;
+            transition: transform 0.2s;
+        }
+
+        .menu-section-header.collapsed .menu-section-toggle {
+            transform: rotate(-90deg);
+        }
+
+        .menu-section-content.collapsed {
+            display: none;
+        }
+
         .import-empty {
             display: none;
             text-align: center;
@@ -3111,13 +3142,51 @@
                 // Renderizar menús históricos
                 if (historicalMenus.length > 0) {
                     const historicalHeader = document.createElement('div');
-                    historicalHeader.className = 'menu-section-header';
-                    historicalHeader.textContent = '📚 Histórico';
+                    historicalHeader.className = 'menu-section-header collapsible collapsed';
+                    historicalHeader.setAttribute('role', 'button');
+                    historicalHeader.setAttribute('tabindex', '0');
+                    historicalHeader.setAttribute('aria-expanded', 'false');
+                    
+                    const toggleIcon = document.createElement('span');
+                    toggleIcon.className = 'menu-section-toggle';
+                    toggleIcon.textContent = '▼';
+                    historicalHeader.appendChild(toggleIcon);
+                    historicalHeader.appendChild(document.createTextNode(' 📚 Histórico'));
+                    
                     listEl.appendChild(historicalHeader);
                     
+                    const historicalContent = document.createElement('div');
+                    historicalContent.className = 'menu-section-content collapsed';
                     historicalMenus.forEach(data => {
-                        listEl.appendChild(createMenuCard(data));
+                        historicalContent.appendChild(createMenuCard(data));
                     });
+                    listEl.appendChild(historicalContent);
+                    
+                    // Toggle function for both click and keyboard events
+                    const toggleSection = function() {
+                        // classList.toggle() returns true if the class was ADDED, false if REMOVED
+                        // Starting state: classList has 'collapsed', so element is collapsed
+                        // First click: toggle() removes 'collapsed' and returns false → element expands
+                        // Second click: toggle() adds 'collapsed' and returns true → element collapses
+                        const classWasAdded = historicalHeader.classList.toggle('collapsed');
+                        // Use the return value to ensure both elements stay in sync
+                        historicalContent.classList.toggle('collapsed', classWasAdded);
+                        // If class was added (true), section is now collapsed → aria-expanded='false'
+                        // If class was removed (false), section is now expanded → aria-expanded='true'
+                        historicalHeader.setAttribute('aria-expanded', classWasAdded ? 'false' : 'true');
+                    };
+                    
+                    // Set up click handler
+                    historicalHeader.onclick = toggleSection;
+                    
+                    // Set up keyboard handler for accessibility
+                    historicalHeader.onkeydown = function(e) {
+                        // Handle Enter and Space keys (prevent Space from scrolling the page)
+                        if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            toggleSection();
+                        }
+                    };
                 }
             } catch (error) {
                 console.error('Error buscando semanas:', error);
