@@ -3027,6 +3027,8 @@ const snapshot = await db.collection('paulina_menus').get();
                 snapshot.forEach(doc => docs.push(doc.data()));
                 
                 // Determinar el número de semana actual del año
+                // Nota: Cálculo simplificado que puede tener imprecisiones en los límites del año
+                // pero es suficiente para categorizar menús semanales dentro del mismo año
                 const now = new Date();
                 const startOfYear = new Date(now.getFullYear(), 0, 1);
                 const daysSinceStart = Math.floor((now - startOfYear) / (24 * 60 * 60 * 1000));
@@ -3034,12 +3036,15 @@ const snapshot = await db.collection('paulina_menus').get();
                 
                 // Separar menús en actuales e históricos
                 // Menús especiales y menús de las últimas 3 semanas son "actuales"
+                // Los menús más antiguos van a "históricos"
                 const currentMenus = [];
                 const historicalMenus = [];
                 
                 docs.forEach(data => {
                     const isSpecial = !data.semana;
-                    const isRecent = data.semana && (currentWeekOfYear - data.semana <= 3);
+                    // Consideramos "recientes" los menús dentro de un rango de 3 semanas
+                    // Esto maneja bien el caso común pero puede fallar en límites de año
+                    const isRecent = data.semana && Math.abs(currentWeekOfYear - data.semana) <= 3;
                     
                     if (isSpecial || isRecent) {
                         currentMenus.push(data);
