@@ -367,6 +367,31 @@
             margin-top: 0;
         }
 
+        .menu-section-header.collapsible {
+            cursor: pointer;
+            user-select: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .menu-section-header.collapsible:hover {
+            color: var(--text);
+        }
+
+        .menu-section-toggle {
+            font-size: 0.7rem;
+            transition: transform 0.2s;
+        }
+
+        .menu-section-header.collapsed .menu-section-toggle {
+            transform: rotate(-90deg);
+        }
+
+        .menu-section-content.collapsed {
+            display: none;
+        }
+
         .import-empty {
             display: none;
             text-align: center;
@@ -3111,13 +3136,20 @@
                 // Renderizar menús históricos
                 if (historicalMenus.length > 0) {
                     const historicalHeader = document.createElement('div');
-                    historicalHeader.className = 'menu-section-header';
-                    historicalHeader.textContent = '📚 Histórico';
+                    historicalHeader.className = 'menu-section-header collapsible collapsed';
+                    historicalHeader.innerHTML = '<span class="menu-section-toggle">▼</span> 📚 Histórico';
+                    historicalHeader.onclick = function() {
+                        this.classList.toggle('collapsed');
+                        historicalContent.classList.toggle('collapsed');
+                    };
                     listEl.appendChild(historicalHeader);
                     
+                    const historicalContent = document.createElement('div');
+                    historicalContent.className = 'menu-section-content collapsed';
                     historicalMenus.forEach(data => {
-                        listEl.appendChild(createMenuCard(data));
+                        historicalContent.appendChild(createMenuCard(data));
                     });
+                    listEl.appendChild(historicalContent);
                 }
             } catch (error) {
                 console.error('Error buscando semanas:', error);
