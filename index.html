@@ -1650,6 +1650,11 @@
             return ALLOWED_EMAILS.includes(email.toLowerCase());
         }
 
+        function isStandaloneMode() {
+            return window.matchMedia('(display-mode: standalone)').matches
+                || window.navigator.standalone === true;
+        }
+
         async function signInWithGoogle() {
             if (!auth) {
                 showLoginError('Firebase no está configurado. Revisá SETUP_FIREBASE.md');
@@ -1659,6 +1664,12 @@
             try {
                 const provider = new firebase.auth.GoogleAuthProvider();
                 provider.setCustomParameters({ prompt: 'select_account' });
+
+                if (isStandaloneMode()) {
+                    // En modo standalone (PWA), los popups no funcionan
+                    await auth.signInWithRedirect(provider);
+                    return;
+                }
 
                 const result = await auth.signInWithPopup(provider);
                 const user = result.user;
@@ -1674,7 +1685,18 @@
             } catch (error) {
                 console.error('Error en login:', error);
                 if (error.code === 'auth/popup-closed-by-user') {
-                    return; // Usuario cerró el popup, no mostrar error
+                    return;
+                }
+                // Si el popup falla, intentar con redirect como fallback
+                if (error.code === 'auth/popup-blocked' || error.code === 'auth/cancelled-popup-request') {
+                    try {
+                        const provider = new firebase.auth.GoogleAuthProvider();
+                        provider.setCustomParameters({ prompt: 'select_account' });
+                        await auth.signInWithRedirect(provider);
+                        return;
+                    } catch (redirectError) {
+                        console.error('Error en redirect:', redirectError);
+                    }
                 }
                 showLoginError('Error al iniciar sesión: ' + error.message);
             }
@@ -1722,6 +1744,22 @@
             // Mostrar nombre corto
             const firstName = user.displayName ? user.displayName.split(' ')[0] : user.email.split('@')[0];
             name.textContent = firstName;
+        }
+
+        // Manejar resultado de signInWithRedirect (vuelve aquí después del redirect)
+        if (auth) {
+            auth.getRedirectResult().then(result => {
+                if (result && result.user) {
+                    if (!isEmailAllowed(result.user.email)) {
+                        auth.signOut();
+                        showLoginError(`El email ${result.user.email} no está autorizado. Solo Mati y Vicky pueden usar esta app.`);
+                    }
+                    // Si es válido, el onAuthStateChanged se encargará
+                }
+            }).catch(error => {
+                console.error('Error en redirect result:', error);
+                showLoginError('Error al iniciar sesión: ' + error.message);
+            });
         }
 
         // Auth state observer
