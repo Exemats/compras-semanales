@@ -1182,7 +1182,6 @@ Descarga masiva:
                 print(f"   {dia}: {receta['nombre']} ({len(receta['ingredientes'])} ingredientes)")
 
     # Procesar menús especiales si hay alguno (cuando se usa --todas)
-    exitosas_especiales = 0
     if menus_a_procesar:
         print(f"\n{'='*50}")
         print(f"🌟 Procesando {len(menus_a_procesar)} menús especiales...")
