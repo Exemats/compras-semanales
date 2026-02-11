@@ -1635,14 +1635,19 @@
         let currentUser = null;
         let firebaseReady = false;
 
-        try {
-            firebase.initializeApp(firebaseConfig);
-            db = firebase.firestore();
-            auth = firebase.auth();
-            firebaseReady = true;
-            console.log('Firebase inicializado');
-        } catch (error) {
-            console.warn('Firebase no disponible, usando solo localStorage:', error);
+        // Check if Firebase SDK loaded before trying to use it
+        if (typeof firebase !== 'undefined') {
+            try {
+                firebase.initializeApp(firebaseConfig);
+                db = firebase.firestore();
+                auth = firebase.auth();
+                firebaseReady = true;
+                console.log('Firebase inicializado');
+            } catch (error) {
+                console.warn('Firebase no disponible, usando solo localStorage:', error);
+            }
+        } else {
+            console.warn('Firebase SDK no se cargó. La app funcionará en modo local.');
         }
 
         // ==================== AUTHENTICATION ====================
@@ -3303,6 +3308,7 @@ const snapshot = await db.collection('paulina_menus').get();
             importWrapper[listType] = itemsToImport;
  
             await createWeekFromImport(data, importWrapper);
+        }
 
         // ---- Crear semana desde datos importados ----
 
