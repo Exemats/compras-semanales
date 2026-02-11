@@ -55,6 +55,8 @@ Reemplazarlo con los valores que copiaste de Firebase.
 
 ## Reglas de Firestore (Recomendado)
 
+⚠️ **IMPORTANTE**: Primero ejecuta el scraper para crear la colección `paulina_menus`, luego aplica estas reglas de seguridad.
+
 Para que solo los usuarios autorizados (Mati y Vicky) puedan acceder:
 
 ```javascript
@@ -80,6 +82,11 @@ service cloud.firestore {
   }
 }
 ```
+
+**Orden de configuración recomendado:**
+1. Crear base de datos en "modo de prueba" (acceso abierto por 30 días)
+2. Configurar y ejecutar el scraper al menos una vez para crear la colección
+3. Aplicar las reglas de seguridad arriba para restringir el acceso
 
 ---
 

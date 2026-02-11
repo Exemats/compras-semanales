@@ -3008,7 +3008,7 @@
             }
 
             try {
-const snapshot = await db.collection('paulina_menus').get();
+                const snapshot = await db.collection('paulina_menus').get();
                 document.getElementById('availableWeeksLoading').style.display = 'none';
  
                 if (snapshot.empty) {
@@ -3122,7 +3122,18 @@ const snapshot = await db.collection('paulina_menus').get();
             } catch (error) {
                 console.error('Error buscando semanas:', error);
                 document.getElementById('availableWeeksLoading').style.display = 'none';
-                showToast('Error al buscar semanas', 'error');
+                
+                // Mostrar mensaje de error más descriptivo
+                const errorMsg = error.code === 'permission-denied' 
+                    ? 'Permisos insuficientes. Verifica las reglas de seguridad de Firestore'
+                    : error.code === 'unavailable'
+                    ? 'Firebase no disponible. Verifica tu conexión a internet'
+                    : error.message
+                    ? `Error: ${error.message}`
+                    : 'Error al buscar semanas';
+                
+                showToast(errorMsg, 'error');
+                document.getElementById('availableWeeksEmpty').style.display = 'block';
             }
         }
 
