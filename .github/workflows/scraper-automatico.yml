@@ -18,6 +18,8 @@ on:
           - semana_especifica
           - todas
           - rango
+          - especiales
+          - todo_completo
       semana:
         description: 'Numero de semana (solo si modo = semana_especifica)'
         required: false
@@ -63,6 +65,8 @@ jobs:
             "reciente")
               echo "📅 Descargando semana mas reciente..."
               python paulina_scraper.py
+              echo "🌟 Descargando menus especiales..."
+              python paulina_scraper.py --especiales || true
               ;;
             "semana_especifica")
               SEMANA="${{ github.event.inputs.semana }}"
@@ -87,6 +91,16 @@ jobs:
                 echo "❌ Error: Debes especificar un rango (ej: 3-5)"
                 exit 1
               fi
+              ;;
+            "especiales")
+              echo "🌟 Descargando menus especiales..."
+              python paulina_scraper.py --especiales
+              ;;
+            "todo_completo")
+              echo "📅 Descargando todas las semanas..."
+              python paulina_scraper.py --todas
+              echo "🌟 Descargando menus especiales..."
+              python paulina_scraper.py --especiales || true
               ;;
           esac
 
