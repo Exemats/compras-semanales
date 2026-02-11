@@ -3137,15 +3137,15 @@ const snapshot = await db.collection('paulina_menus').get();
             const diasOrden = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
             
             // Normalizar día (remover acentos para comparación)
-            const normalizeDia = (dia) => {
+            const normalizeDayName = (dia) => {
                 return dia.toLowerCase()
                     .normalize("NFD").replace(/[\u0300-\u036f]/g, "");
             };
             
             // Ordenar días según diasOrden
             const diasDisponibles = Object.keys(recetas).sort((a, b) => {
-                const indexA = diasOrden.findIndex(d => normalizeDia(d) === normalizeDia(a));
-                const indexB = diasOrden.findIndex(d => normalizeDia(d) === normalizeDia(b));
+                const indexA = diasOrden.findIndex(d => normalizeDayName(d) === normalizeDayName(a));
+                const indexB = diasOrden.findIndex(d => normalizeDayName(d) === normalizeDayName(b));
                 return indexA - indexB;
             });
 
@@ -3278,6 +3278,7 @@ const snapshot = await db.collection('paulina_menus').get();
             // Formatea un número decimal como "1", "1/2", "1 1/2", etc.
             if (qty === 0) return '0';
             
+            const FRACTION_TOLERANCE = 0.01; // Tolerancia para comparación de fracciones
             const whole = Math.floor(qty);
             const frac = qty - whole;
             
@@ -3293,7 +3294,7 @@ const snapshot = await db.collection('paulina_menus').get();
             ];
             
             for (const [num, den] of fractions) {
-                if (Math.abs(frac - (num / den)) < 0.01) {
+                if (Math.abs(frac - (num / den)) < FRACTION_TOLERANCE) {
                     if (whole === 0) {
                         return `${num}/${den}`;
                     } else {
@@ -3323,14 +3324,19 @@ const snapshot = await db.collection('paulina_menus').get();
                 
                 if (qtyMatch) {
                     const qtyStr = qtyMatch[1];
-                    const itemName = qtyMatch[2].toLowerCase();
+                    const itemName = qtyMatch[2];
+                    const itemNameLower = itemName.toLowerCase();
                     const qty = parseQuantity(qtyStr);
                     
                     if (qty !== null) {
                         // Tenemos una cantidad válida
-                        const existing = ingredientMap.get(itemName) || { qty: 0, original: itemName };
-                        existing.qty += qty;
-                        ingredientMap.set(itemName, existing);
+                        const existing = ingredientMap.get(itemNameLower);
+                        if (existing) {
+                            existing.qty += qty;
+                        } else {
+                            // Primera ocurrencia: guardar nombre original con su case
+                            ingredientMap.set(itemNameLower, { qty: qty, original: itemName });
+                        }
                         return;
                     }
                 }
