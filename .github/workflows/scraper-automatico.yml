@@ -56,9 +56,10 @@ jobs:
         run: |
           MODO="${{ github.event.inputs.modo }}"
 
-          # Si es ejecucion programada (sin inputs), usar modo reciente
+          # Si es ejecucion programada (sin inputs), usar modo todo_completo
+          # para capturar todo lo disponible y almacenarlo como histórico
           if [ -z "$MODO" ]; then
-            MODO="reciente"
+            MODO="todo_completo"
           fi
 
           case "$MODO" in
@@ -97,10 +98,8 @@ jobs:
               python paulina_scraper.py --especiales
               ;;
             "todo_completo")
-              echo "📅 Descargando todas las semanas..."
+              echo "📅🌟 Descargando TODOS los menús disponibles (semanales + especiales)..."
               python paulina_scraper.py --todas
-              echo "🌟 Descargando menus especiales..."
-              python paulina_scraper.py --especiales || true
               ;;
           esac
 
