@@ -3124,14 +3124,13 @@
                 document.getElementById('availableWeeksLoading').style.display = 'none';
                 
                 // Mostrar mensaje de error más descriptivo
-                let errorMsg = 'Error al buscar semanas';
-                if (error.code === 'permission-denied') {
-                    errorMsg = 'Permisos insuficientes. Verifica las reglas de seguridad de Firestore';
-                } else if (error.code === 'unavailable') {
-                    errorMsg = 'Firebase no disponible. Verifica tu conexión a internet';
-                } else if (error.message) {
-                    errorMsg = `Error: ${error.message}`;
-                }
+                const errorMsg = error.code === 'permission-denied' 
+                    ? 'Permisos insuficientes. Verifica las reglas de seguridad de Firestore'
+                    : error.code === 'unavailable'
+                    ? 'Firebase no disponible. Verifica tu conexión a internet'
+                    : error.message
+                    ? `Error: ${error.message}`
+                    : 'Error al buscar semanas';
                 
                 showToast(errorMsg, 'error');
                 document.getElementById('availableWeeksEmpty').style.display = 'block';
