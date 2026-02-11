@@ -3122,7 +3122,19 @@
             } catch (error) {
                 console.error('Error buscando semanas:', error);
                 document.getElementById('availableWeeksLoading').style.display = 'none';
-                showToast('Error al buscar semanas', 'error');
+                
+                // Mostrar mensaje de error más descriptivo
+                let errorMsg = 'Error al buscar semanas';
+                if (error.code === 'permission-denied') {
+                    errorMsg = 'Permisos insuficientes. Verifica las reglas de seguridad de Firestore';
+                } else if (error.code === 'unavailable') {
+                    errorMsg = 'Firebase no disponible. Verifica tu conexión a internet';
+                } else if (error.message) {
+                    errorMsg = `Error: ${error.message}`;
+                }
+                
+                showToast(errorMsg, 'error');
+                document.getElementById('availableWeeksEmpty').style.display = 'block';
             }
         }
 
