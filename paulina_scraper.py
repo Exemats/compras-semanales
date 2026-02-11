@@ -862,6 +862,26 @@ class FirebaseUploader:
             print(f"❌ Error subiendo a Firebase: {e}")
             return False
 
+    def upload_especial(self, slug: str, data: dict) -> bool:
+        """Sube un menú especial a Firestore con ID basado en slug."""
+        if not self.db:
+            print("❌ Firebase no está inicializado")
+            return False
+
+        try:
+            doc_id = f'especial_{slug}'
+            doc_ref = self.db.collection('paulina_menus').document(doc_id)
+            doc_ref.set({
+                **data,
+                'uploadedAt': datetime.now().isoformat()
+            })
+            print(f"✅ Menú especial '{slug}' subido a Firebase")
+            return True
+
+        except Exception as e:
+            print(f"❌ Error subiendo menú especial a Firebase: {e}")
+            return False
+
 
 def main():
     import argparse
@@ -904,6 +924,7 @@ Descarga masiva:
     parser.add_argument('--todas', '-t', action='store_true', help='Descargar todas las semanas disponibles')
     parser.add_argument('--rango', '-r', type=str, help='Rango de semanas (ej: 3-5)')
     parser.add_argument('--output', '-o', default='./menu_semana.json', help='Archivo JSON de salida')
+    parser.add_argument('--especiales', '-e', action='store_true', help='Descubrir y descargar todos los menús especiales activos')
     parser.add_argument('--local', action='store_true', help='Solo guardar localmente, no subir a Firebase')
     parser.add_argument('--credentials', '-c', default='firebase_credentials.json', help='Archivo de credenciales Firebase')
 
@@ -926,6 +947,57 @@ Descarga masiva:
         else:
             print("\n❌ No se encontraron menús activos")
         return 0
+
+    # Modo especiales: descubrir y procesar todos los menús especiales
+    if args.especiales:
+        menus = MenuDiscoverer.descubrir_menus()
+        especiales = [m for m in menus if m['tipo'] == 'especial']
+
+        if not especiales:
+            print("\n❌ No se encontraron menús especiales activos")
+            return 0
+
+        print(f"\n🌟 Procesando {len(especiales)} menús especiales...")
+        uploader = None
+        if not args.local:
+            uploader = FirebaseUploader(args.credentials)
+
+        exitosas_esp = 0
+        for menu in especiales:
+            print(f"\n{'='*50}")
+            print(f"🌟 {menu['titulo']}")
+            extractor = PaulinaExtractor(url=menu['url'], modo='general')
+
+            if not extractor.descargar():
+                print(f"⚠️  No se pudo descargar: {menu['titulo']}")
+                continue
+
+            if not extractor.extraer():
+                print(f"⚠️  No se pudo extraer: {menu['titulo']}")
+                continue
+
+            datos = extractor.generar_json()
+
+            # Guardar JSON local
+            titulo_safe = re.sub(r'[^\w\-]', '_', extractor.titulo[:30])
+            output_path = args.output.replace('.json', f'_{titulo_safe}.json')
+            with open(output_path, 'w', encoding='utf-8') as f:
+                json.dump(datos, f, ensure_ascii=False, indent=2)
+            print(f"📄 JSON guardado: {output_path}")
+
+            # Subir a Firebase
+            if uploader and uploader.db:
+                if extractor.semana:
+                    uploader.upload(extractor.semana, datos)
+                else:
+                    slug = re.sub(r'[^\w]+', '_', extractor.titulo.lower()).strip('_')[:40]
+                    uploader.upload_especial(slug, datos)
+
+            exitosas_esp += 1
+
+        print(f"\n{'='*50}")
+        print(f"✨ {exitosas_esp}/{len(especiales)} menús especiales procesados")
+        return 0 if exitosas_esp > 0 else 1
 
     # Modo listar: solo mostrar semanas disponibles (patrón viejo)
     if args.listar:
@@ -992,11 +1064,16 @@ Descarga masiva:
             json.dump(datos, f, ensure_ascii=False, indent=2)
         print(f"📄 JSON guardado: {output_path}")
 
-        # Subir a Firebase si tiene número de semana
-        if not args.local and extractor.semana:
+        # Subir a Firebase
+        if not args.local:
             uploader = FirebaseUploader(args.credentials)
             if uploader and uploader.db:
-                uploader.upload(extractor.semana, datos)
+                if extractor.semana:
+                    uploader.upload(extractor.semana, datos)
+                else:
+                    # Menú especial sin número de semana: usar slug del título
+                    slug = re.sub(r'[^\w]+', '_', extractor.titulo.lower()).strip('_')[:40]
+                    uploader.upload_especial(slug, datos)
 
         print(f"\n✅ {datos['titulo']}")
         if datos.get('fechas'):
