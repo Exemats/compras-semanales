@@ -379,6 +379,12 @@
             color: var(--text);
         }
 
+        .menu-section-header.collapsible:focus-visible {
+            outline: 2px solid var(--primary);
+            outline-offset: 2px;
+            border-radius: 4px;
+        }
+
         .menu-section-toggle {
             font-size: 0.7rem;
             transition: transform 0.2s;
@@ -3163,7 +3169,8 @@
                         // First click: toggle() removes 'collapsed' and returns false → element expands
                         // Second click: toggle() adds 'collapsed' and returns true → element collapses
                         const classWasAdded = historicalHeader.classList.toggle('collapsed');
-                        historicalContent.classList.toggle('collapsed');
+                        // Use the return value to ensure both elements stay in sync
+                        historicalContent.classList.toggle('collapsed', classWasAdded);
                         // If class was added (true), section is now collapsed → aria-expanded='false'
                         // If class was removed (false), section is now expanded → aria-expanded='true'
                         historicalHeader.setAttribute('aria-expanded', classWasAdded ? 'false' : 'true');
