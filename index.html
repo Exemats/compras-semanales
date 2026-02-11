@@ -3008,7 +3008,7 @@
             }
 
             try {
-const snapshot = await db.collection('paulina_menus').get();
+                const snapshot = await db.collection('paulina_menus').get();
                 document.getElementById('availableWeeksLoading').style.display = 'none';
  
                 if (snapshot.empty) {
