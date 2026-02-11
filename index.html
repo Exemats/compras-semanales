@@ -3127,14 +3127,24 @@ const snapshot = await db.collection('paulina_menus').get();
                 container.appendChild(div);
             });
         }
+        
+        // ---- Constantes para manejo de ingredientes y días ----
+        
+        const DIAS_ORDEN = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+        
+        const FRACTION_TOLERANCE = 0.01; // Tolerancia para comparación de fracciones
+        
+        const COMMON_FRACTIONS = [
+            [1, 2], [1, 3], [2, 3], [1, 4], [3, 4],
+            [1, 5], [2, 5], [3, 5], [4, 5],
+            [1, 8], [3, 8], [5, 8], [7, 8]
+        ];
+        
         // ---- Días (para menús semanales con recetas por día) ----
 
         function renderDiasCheckboxes(recetas) {
             const container = document.getElementById('diasContainer');
             container.innerHTML = '';
-
-            // Orden de días de la semana (solo versión canónica)
-            const diasOrden = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
             
             // Normalizar día (remover acentos para comparación)
             const normalizeDayName = (dia) => {
@@ -3142,10 +3152,10 @@ const snapshot = await db.collection('paulina_menus').get();
                     .normalize("NFD").replace(/[\u0300-\u036f]/g, "");
             };
             
-            // Ordenar días según diasOrden
+            // Ordenar días según DIAS_ORDEN
             const diasDisponibles = Object.keys(recetas).sort((a, b) => {
-                const indexA = diasOrden.findIndex(d => normalizeDayName(d) === normalizeDayName(a));
-                const indexB = diasOrden.findIndex(d => normalizeDayName(d) === normalizeDayName(b));
+                const indexA = DIAS_ORDEN.findIndex(d => normalizeDayName(d) === normalizeDayName(a));
+                const indexB = DIAS_ORDEN.findIndex(d => normalizeDayName(d) === normalizeDayName(b));
                 return indexA - indexB;
             });
 
@@ -3278,7 +3288,6 @@ const snapshot = await db.collection('paulina_menus').get();
             // Formatea un número decimal como "1", "1/2", "1 1/2", etc.
             if (qty === 0) return '0';
             
-            const FRACTION_TOLERANCE = 0.01; // Tolerancia para comparación de fracciones
             const whole = Math.floor(qty);
             const frac = qty - whole;
             
@@ -3287,13 +3296,7 @@ const snapshot = await db.collection('paulina_menus').get();
             }
             
             // Intentar convertir decimal a fracción común
-            const fractions = [
-                [1, 2], [1, 3], [2, 3], [1, 4], [3, 4],
-                [1, 5], [2, 5], [3, 5], [4, 5],
-                [1, 8], [3, 8], [5, 8], [7, 8]
-            ];
-            
-            for (const [num, den] of fractions) {
+            for (const [num, den] of COMMON_FRACTIONS) {
                 if (Math.abs(frac - (num / den)) < FRACTION_TOLERANCE) {
                     if (whole === 0) {
                         return `${num}/${den}`;
