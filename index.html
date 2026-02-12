@@ -1659,7 +1659,7 @@
                 <div id="diasSection" style="display: none;">
                     <div class="import-hint-label">Días a incluir:</div>
                     <div class="import-hint-note">
-                        💡 <strong>Nota:</strong> Todos los días seleccionados importan la lista completa de compras. Si deseleccionás un día, se excluyen solo los ingredientes específicos de ese día.
+                        💡 <strong>Nota:</strong> Al seleccionar todos los días se importa la lista completa. Si deseleccionás un día, se excluyen los ingredientes específicos de ese día, manteniendo los items de despensa y los días restantes.
                     </div>
                     <div id="diasContainer" class="import-checklist"></div>
                     <div class="import-quick-btns">
@@ -3798,13 +3798,14 @@
                         // Todos los días → lista completa
                         filtered = items;
                     } else {
-                        // Filtrar: mantener item solo si algún día seleccionado lo usa
+                        // Filtrar: mantener item si algún día seleccionado lo usa,
+                        // o si no tiene mapeo (item de despensa/genérico)
                         filtered = items.filter(item => {
                             const days = itemToDays[item];
-                            if (!days || days.length === 0) return false; // Sin mapeo = excluir
+                            if (!days || days.length === 0) return true; // Sin mapeo = mantener (despensa)
                             return days.some(d => selectedSet.has(d));
                         });
-                        console.log(`[Import] Categoría "${cat}": ${items.length} items → ${filtered.length} filtrados`);
+                        console.log(`[Import] Categoría "${cat}": ${items.length} items → ${filtered.length} filtrados (incluye items de despensa sin mapeo)`);
                     }
 
                     if (filtered.length > 0) {
