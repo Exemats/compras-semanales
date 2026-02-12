@@ -10,8 +10,10 @@ Uso:
     python paulina_scraper.py --local            # Solo guarda JSON local (no sube a Firebase)
     python paulina_scraper.py --menus            # Lista todos los menús activos
     python paulina_scraper.py --url URL          # Descarga menú desde URL específica
-    python paulina_scraper.py --platos 1,2,3     # Solo incluir platos específicos (1-5)
     python paulina_scraper.py --reset-db         # Borra menús de Firebase y re-descarga los activos
+
+Nota: El scraper siempre descarga la lista de compras completa + recetas de cada día.
+      El filtrado por días específicos se realiza en la interfaz web al importar.
 
 Autenticación:
     El sitio requiere login. Configurar variables de entorno:
@@ -1180,15 +1182,8 @@ Ejemplos básicos:
   python paulina_scraper.py --listar           # Lista semanas disponibles
   python paulina_scraper.py --menus            # Lista TODOS los menús activos (incluye especiales)
 
-Menús especiales (sin lista general):
+Menús especiales:
   python paulina_scraper.py --url URL          # Descarga menú desde URL específica
-  python paulina_scraper.py --url URL --platos 1,2,3   # Solo platos 1, 2 y 3
-  python paulina_scraper.py --url URL --platos todos   # Todos los platos
-
-Menús semanales con lista general:
-  python paulina_scraper.py --modo general     # Lista de compras semanal completa (5 días)
-  python paulina_scraper.py --dias 1,2,3       # Solo ingredientes de días 1, 2 y 3
-  python paulina_scraper.py --modo dias        # Ver recetas de cada día
 
 Descarga masiva:
   python paulina_scraper.py --todas            # Todas las semanas disponibles
@@ -1196,6 +1191,9 @@ Descarga masiva:
 
 Reset de base de datos:
   python paulina_scraper.py --reset-db         # Backup + borrar + re-descargar todos
+
+Nota: El scraper descarga TODOS los datos disponibles (lista completa + recetas de cada día).
+      El filtrado por días se hace en la interfaz web al importar.
 
 Autenticación:
   python paulina_scraper.py --user EMAIL --password PASS
@@ -1205,11 +1203,11 @@ Autenticación:
     parser.add_argument('--semana', '-s', type=int, help='Número de semana específico')
     parser.add_argument('--url', '-u', type=str, help='URL directa del menú (para menús especiales)')
     parser.add_argument('--modo', '-m', default='general',
-                       help='Modo de extracción: general (lista semanal), dias (recetas diarias), platos (menú especial), o día específico (lunes, martes...)')
+                       help='[LEGACY] Modo de extracción (siempre usa "general" - el filtrado se hace en la UI)')
     parser.add_argument('--platos', '-p', type=str,
-                       help='Platos a incluir: "1,2,3" o "todos" (para menús especiales sin lista general)')
+                       help='[AVANZADO] Platos a incluir: "1,2,3" o "todos" (solo para desarrollo)')
     parser.add_argument('--dias', '-d', type=str,
-                       help='Días a incluir: "1,2,3" o "todos" (para menús con lista general, genera lista de esos días)')
+                       help='[LEGACY] Días a incluir (deprecado - usar filtrado en la UI)')
     parser.add_argument('--listar', '-l', action='store_true', help='Listar semanas disponibles (patrón menu-semana-N)')
     parser.add_argument('--menus', action='store_true', help='Listar TODOS los menús activos (incluye especiales)')
     parser.add_argument('--todas', '-t', action='store_true', help='Descargar todas las semanas disponibles')
