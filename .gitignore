@@ -5,6 +5,7 @@ serviceAccountKey.json
 
 # Scraper output
 menu_semana*.json
+backup_menus*.json
 
 # Python
 __pycache__/

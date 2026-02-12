@@ -2201,6 +2201,7 @@
                 'Carnes 🥩',
                 'Dietética 🥗',
                 'Verdulería 🥬',
+                'Ya tenés en casa ✅',
                 'Yapa ⭐',
                 'Comodín 👑',
                 'Extras ➕'
@@ -3903,7 +3904,7 @@
             if (lower.includes('verdulería') || lower.includes('verduleria')) return 'Verdulería 🥬';
             if (lower.includes('yapa')) return 'Yapa ⭐';
             if (lower.includes('comodín') || lower.includes('comodin')) return 'Comodín 👑';
-            if (lower.includes('casa') || lower.includes('seguro')) return 'Ya tenés ✅';
+            if (lower.includes('casa') || lower.includes('seguro')) return 'Ya tenés en casa ✅';
 
             // Si ya tiene emoji, devolverlo como está
             if (/[\u{1F300}-\u{1F9FF}]/u.test(category)) return category;
