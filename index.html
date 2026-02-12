@@ -432,6 +432,15 @@
             margin-bottom: 8px;
         }
 
+        .import-hint-note {
+            margin-bottom: 12px;
+            padding: 10px;
+            background: rgba(59, 130, 246, 0.1);
+            border-radius: 8px;
+            font-size: 13px;
+            color: #94a3b8;
+        }
+
         .import-checklist {
             max-height: 200px;
             overflow-y: auto;
@@ -1649,6 +1658,9 @@
                 <!-- 2. Días a incluir (si hay recetas por día) -->
                 <div id="diasSection" style="display: none;">
                     <div class="import-hint-label">Días a incluir:</div>
+                    <div class="import-hint-note">
+                        💡 <strong>Nota:</strong> Todos los días seleccionados importan la lista completa de compras. Si deseleccionás un día, se excluyen solo los ingredientes específicos de ese día.
+                    </div>
                     <div id="diasContainer" class="import-checklist"></div>
                     <div class="import-quick-btns">
                         <button class="modal-btn secondary import-quick-btn" onclick="selectAllDias()">Todos</button>
@@ -2937,8 +2949,22 @@
                 return;
             }
 
-            const weekName = weeks[currentWeekId]?.name || 'esta semana';
-            if (!confirm(`¿Eliminar "${weekName}"? Se perderán todos los datos.`)) return;
+            const week = weeks[currentWeekId];
+            const weekName = week?.name || 'esta semana';
+            const itemCount = week?.items ? Object.keys(week.items).length : 0;
+            
+            // Show more information in confirmation
+            let confirmMsg = `¿Eliminar "${weekName}"?\n\n`;
+            confirmMsg += `📦 ${itemCount} productos\n`;
+            if (week?.sourceData?.fechas) {
+                confirmMsg += `📅 ${week.sourceData.fechas}\n`;
+            }
+            if (week?.sourceData?.semana) {
+                confirmMsg += `📊 Semana ${week.sourceData.semana}\n`;
+            }
+            confirmMsg += `\n⚠️ Esta acción no se puede deshacer.`;
+            
+            if (!confirm(confirmMsg)) return;
 
             const weekIdToDelete = currentWeekId;
 
@@ -2960,11 +2986,11 @@
         }
 
         // ==================== TOAST ====================
-        function showToast(msg, type = '') {
+        function showToast(msg, type = '', duration = 2500) {
             const toast = document.getElementById('toast');
             toast.textContent = msg;
             toast.className = `toast show ${type}`;
-            setTimeout(() => toast.classList.remove('show'), 2500);
+            setTimeout(() => toast.classList.remove('show'), duration);
         }
 
         // ==================== IMPORT FROM PAULINA ====================
@@ -3389,6 +3415,11 @@
         // ---- Constantes para manejo de ingredientes y días ----
         
         const DIAS_ORDEN = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+        
+        const DAY_ABBREVIATIONS = {
+            'Lunes': 'Lu', 'Martes': 'Ma', 'Miércoles': 'Mi',
+            'Jueves': 'Ju', 'Viernes': 'Vi', 'Sábado': 'Sa', 'Domingo': 'Do'
+        };
         
         const FRACTION_TOLERANCE = 0.01; // Tolerancia para comparación de fracciones
         
@@ -3850,7 +3881,33 @@
         // ---- Crear semana desde datos importados ----
 
         async function createWeekFromImport(data, itemsToImport) {
-            const weekName = data.titulo || `Semana ${data.semana || 'Importada'}`;
+            // Generate week name with selected days information
+            let weekName = data.titulo || `Semana ${data.semana || 'Importada'}`;
+            
+            // Add selected days to name if not all days are selected
+            const tieneRecetas = data.recetas && Object.keys(data.recetas).length > 0;
+            if (tieneRecetas) {
+                const selectedDias = getSelectedDias();
+                const allDias = [...document.querySelectorAll('#diasContainer input[type="checkbox"]')].map(cb => cb.dataset.dia);
+                
+                if (selectedDias.length > 0 && selectedDias.length < allDias.length) {
+                    const dayList = selectedDias.map(d => {
+                        if (DAY_ABBREVIATIONS[d]) {
+                            return DAY_ABBREVIATIONS[d];
+                        } else {
+                            console.warn(`[Import] Día desconocido: "${d}", usando primeras 2 letras`);
+                            return d.substring(0, 2);
+                        }
+                    }).join('-');
+                    weekName += ` (${dayList})`;
+                }
+            }
+            
+            // Add list type indicator if veggie list was selected
+            if (selectedImportMode === 'veggie') {
+                weekName += ' 🌱';
+            }
+            
             const weekId = 'week_' + Date.now();
 
             let counter = 0;
@@ -3906,6 +3963,12 @@
                 }
             }
 
+            // Check for potential duplicate weeks
+            const similarWeeks = findSimilarWeeks(data);
+            if (similarWeeks.length > 0) {
+                console.log('[Import] Semanas similares encontradas:', similarWeeks);
+            }
+
             weeks[weekId] = {
                 id: weekId,
                 name: weekName,
@@ -3932,7 +3995,30 @@
                 msg += ` (${duplicatesSkipped} duplicados eliminados)`;
             }
             console.log(`[Import] Total procesados: ${totalProcessed}, Importados: ${totalItems}, Duplicados: ${duplicatesSkipped}`);
-            showToast(msg, 'success');
+            
+            // Show warning if similar weeks exist
+            if (similarWeeks.length > 0) {
+                const weeksList = similarWeeks.map(w => w.name).join(', ');
+                showToast(`⚠️ Atención: Ya existe una lista similar: ${weeksList}`, 'warning', 5000);
+            } else {
+                showToast(msg, 'success');
+            }
+        }
+
+        function findSimilarWeeks(importData) {
+            // Find weeks with similar source data
+            const similar = [];
+            for (const [id, week] of Object.entries(weeks)) {
+                if (!week.sourceData) continue;
+                
+                // Check if same week number or same dates
+                if (importData.semana && week.sourceData.semana === importData.semana) {
+                    similar.push({ id, name: week.name });
+                } else if (importData.fechas && week.sourceData.fechas === importData.fechas) {
+                    similar.push({ id, name: week.name });
+                }
+            }
+            return similar;
         }
 
         function mapCategoryName(category) {
