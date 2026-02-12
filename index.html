@@ -432,6 +432,15 @@
             margin-bottom: 8px;
         }
 
+        .import-hint-note {
+            margin-bottom: 12px;
+            padding: 10px;
+            background: rgba(59, 130, 246, 0.1);
+            border-radius: 8px;
+            font-size: 13px;
+            color: #94a3b8;
+        }
+
         .import-checklist {
             max-height: 200px;
             overflow-y: auto;
@@ -1649,7 +1658,7 @@
                 <!-- 2. Días a incluir (si hay recetas por día) -->
                 <div id="diasSection" style="display: none;">
                     <div class="import-hint-label">Días a incluir:</div>
-                    <div class="import-hint-note" style="margin-bottom: 12px; padding: 10px; background: rgba(59, 130, 246, 0.1); border-radius: 8px; font-size: 13px; color: #94a3b8;">
+                    <div class="import-hint-note">
                         💡 <strong>Nota:</strong> Todos los días seleccionados importan la lista completa de compras. Si deseleccionás un día, se excluyen solo los ingredientes específicos de ese día.
                     </div>
                     <div id="diasContainer" class="import-checklist"></div>
@@ -3407,6 +3416,11 @@
         
         const DIAS_ORDEN = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
         
+        const DAY_ABBREVIATIONS = {
+            'Lunes': 'Lu', 'Martes': 'Ma', 'Miércoles': 'Mi',
+            'Jueves': 'Ju', 'Viernes': 'Vi', 'Sábado': 'Sa', 'Domingo': 'Do'
+        };
+        
         const FRACTION_TOLERANCE = 0.01; // Tolerancia para comparación de fracciones
         
         const COMMON_FRACTIONS = [
@@ -3877,12 +3891,14 @@
                 const allDias = [...document.querySelectorAll('#diasContainer input[type="checkbox"]')].map(cb => cb.dataset.dia);
                 
                 if (selectedDias.length > 0 && selectedDias.length < allDias.length) {
-                    // Map full day names to abbreviations
-                    const dayAbbrev = {
-                        'Lunes': 'Lu', 'Martes': 'Ma', 'Miércoles': 'Mi',
-                        'Jueves': 'Ju', 'Viernes': 'Vi', 'Sábado': 'Sa', 'Domingo': 'Do'
-                    };
-                    const dayList = selectedDias.map(d => dayAbbrev[d] || d.substring(0, 2)).join('-');
+                    const dayList = selectedDias.map(d => {
+                        if (DAY_ABBREVIATIONS[d]) {
+                            return DAY_ABBREVIATIONS[d];
+                        } else {
+                            console.warn(`[Import] Día desconocido: "${d}", usando primeras 2 letras`);
+                            return d.substring(0, 2);
+                        }
+                    }).join('-');
                     weekName += ` (${dayList})`;
                 }
             }
@@ -3948,7 +3964,7 @@
             }
 
             // Check for potential duplicate weeks
-            const similarWeeks = findSimilarWeeks(data, weekName);
+            const similarWeeks = findSimilarWeeks(data);
             if (similarWeeks.length > 0) {
                 console.log('[Import] Semanas similares encontradas:', similarWeeks);
             }
@@ -3989,7 +4005,7 @@
             }
         }
 
-        function findSimilarWeeks(importData, newWeekName) {
+        function findSimilarWeeks(importData) {
             // Find weeks with similar source data
             const similar = [];
             for (const [id, week] of Object.entries(weeks)) {
