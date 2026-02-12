@@ -20,6 +20,7 @@ on:
           - rango
           - especiales
           - todo_completo
+          - reset
       semana:
         description: 'Numero de semana (solo si modo = semana_especifica)'
         required: false
@@ -53,6 +54,9 @@ jobs:
           echo "$FIREBASE_CREDENTIALS" > firebase_credentials.json
 
       - name: Ejecutar scraper
+        env:
+          PAULINA_USER: ${{ secrets.PAULINA_USER }}
+          PAULINA_PASS: ${{ secrets.PAULINA_PASS }}
         run: |
           MODO="${{ github.event.inputs.modo }}"
 
@@ -100,6 +104,10 @@ jobs:
             "todo_completo")
               echo "📅🌟 Descargando TODOS los menús disponibles (semanales + especiales)..."
               python paulina_scraper.py --todas
+              ;;
+            "reset")
+              echo "🔄 Reseteando base de datos..."
+              python paulina_scraper.py --reset-db
               ;;
           esac
 

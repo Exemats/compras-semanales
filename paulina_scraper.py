@@ -11,8 +11,15 @@ Uso:
     python paulina_scraper.py --menus            # Lista todos los menús activos
     python paulina_scraper.py --url URL          # Descarga menú desde URL específica
     python paulina_scraper.py --platos 1,2,3     # Solo incluir platos específicos (1-5)
+    python paulina_scraper.py --reset-db         # Borra menús de Firebase y re-descarga los activos
 
-Configuración:
+Autenticación:
+    El sitio requiere login. Configurar variables de entorno:
+        PAULINA_USER=tu_email
+        PAULINA_PASS=tu_contraseña
+    O usar argumentos: --user EMAIL --password PASS
+
+Configuración Firebase:
     Crear archivo 'firebase_credentials.json' con las credenciales de Firebase Admin SDK.
     Ver SETUP_FIREBASE.md para más detalles.
 """
@@ -38,6 +45,112 @@ except ImportError:
     from bs4 import BeautifulSoup
 
 
+class PaulinaSession:
+    """Maneja la sesión autenticada con el sitio de Paulina Cocina (WordPress/WooCommerce)."""
+
+    LOGIN_URL = "https://almacen.paulinacocina.net/wp-login.php"
+    BASE_URL = "https://almacen.paulinacocina.net"
+
+    HEADERS = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'es-ES,es;q=0.9,en;q=0.8',
+    }
+
+    def __init__(self, user: str = None, password: str = None):
+        self.session = requests.Session()
+        self.session.headers.update(self.HEADERS)
+        self.authenticated = False
+
+        # Obtener credenciales de args > env vars
+        self.user = user or os.environ.get('PAULINA_USER', '')
+        self.password = password or os.environ.get('PAULINA_PASS', '')
+
+    def login(self) -> bool:
+        """Inicia sesión en el sitio via wp-login.php."""
+        if not self.user or not self.password:
+            print("⚠️  No se configuraron credenciales de Paulina Cocina")
+            print("   Configurá PAULINA_USER y PAULINA_PASS como variables de entorno")
+            print("   O usá --user EMAIL --password PASS")
+            return False
+
+        print(f"🔐 Iniciando sesión como {self.user}...")
+
+        try:
+            # POST al login de WordPress
+            login_data = {
+                'log': self.user,
+                'pwd': self.password,
+                'wp-submit': 'Acceder',
+                'redirect_to': self.BASE_URL + '/menu-semanal/',
+                'testcookie': '1',
+            }
+
+            # Primero obtener cookies iniciales
+            self.session.get(self.LOGIN_URL, timeout=15)
+
+            # Enviar login
+            response = self.session.post(
+                self.LOGIN_URL,
+                data=login_data,
+                timeout=15,
+                allow_redirects=True,
+            )
+
+            # Verificar si el login fue exitoso
+            # WordPress redirige al redirect_to si el login es exitoso
+            # Si falla, se queda en wp-login.php con error
+            if 'wp-login.php' in response.url and 'redirect_to' not in response.url:
+                # Verificar si hay mensaje de error en la respuesta
+                if 'login_error' in response.text or 'ERROR' in response.text:
+                    print("❌ Login fallido: credenciales incorrectas")
+                    return False
+
+            # Verificar que tengamos cookies de autenticación
+            cookies = self.session.cookies.get_dict()
+            has_auth = any(
+                key.startswith('wordpress_logged_in') or key.startswith('wordpress_sec')
+                for key in cookies
+            )
+
+            if has_auth:
+                print("✅ Login exitoso")
+                self.authenticated = True
+                return True
+
+            # Último intento: verificar accediendo a una página protegida
+            test = self.session.get(self.BASE_URL + '/menu-semanal/', timeout=15)
+            if test.status_code == 200 and 'menu' in test.text.lower():
+                print("✅ Login exitoso (verificado por acceso)")
+                self.authenticated = True
+                return True
+
+            print("⚠️  No se pudo verificar el login. Intentando continuar...")
+            self.authenticated = True  # Intentar de todos modos
+            return True
+
+        except requests.RequestException as e:
+            print(f"❌ Error en login: {e}")
+            return False
+
+    def get(self, url: str, **kwargs) -> requests.Response:
+        """GET autenticado."""
+        kwargs.setdefault('timeout', 30)
+        return self.session.get(url, **kwargs)
+
+
+# Sesión global (se inicializa una vez)
+_global_session = None
+
+def get_session(user: str = None, password: str = None) -> PaulinaSession:
+    """Obtiene o crea la sesión autenticada global."""
+    global _global_session
+    if _global_session is None:
+        _global_session = PaulinaSession(user, password)
+        _global_session.login()
+    return _global_session
+
+
 class MenuDiscoverer:
     """Descubre todos los menús activos desde la página principal."""
 
@@ -58,7 +171,8 @@ class MenuDiscoverer:
         print("🔍 Buscando menús activos en la página principal...")
 
         try:
-            response = requests.get(cls.MENU_PAGE_URL, headers=cls.HEADERS, timeout=30)
+            session = get_session()
+            response = session.get(cls.MENU_PAGE_URL)
             response.raise_for_status()
             soup = BeautifulSoup(response.text, 'html.parser')
 
@@ -175,10 +289,11 @@ class PaulinaExtractor:
         """Lista todas las semanas disponibles."""
         disponibles = []
         print("🔍 Buscando semanas disponibles...")
+        session = get_session()
         for semana in range(20, 0, -1):
             url = cls.BASE_URL.format(semana=semana)
             try:
-                response = requests.head(url, timeout=5, allow_redirects=True)
+                response = session.get(url, timeout=10)
                 if response.status_code == 200:
                     disponibles.append(semana)
             except:
@@ -199,7 +314,8 @@ class PaulinaExtractor:
         print(f"🌐 Descargando: {url}")
 
         try:
-            response = requests.get(url, headers=self.HEADERS, timeout=30)
+            session = get_session()
+            response = session.get(url)
             response.raise_for_status()
 
             self.html_content = response.text
@@ -955,7 +1071,7 @@ class FirebaseUploader:
         if not self.db:
             print("❌ Firebase no está inicializado")
             return False
- 
+
         try:
             doc_id = f'especial_{slug}'
             doc_ref = self.db.collection('paulina_menus').document(doc_id)
@@ -965,9 +1081,55 @@ class FirebaseUploader:
             })
             print(f"✅ Menú especial '{slug}' subido a Firebase")
             return True
- 
+
         except Exception as e:
             print(f"❌ Error subiendo menú especial a Firebase: {e}")
+            return False
+
+    def backup_menus(self, output_path: str = 'backup_menus.json') -> bool:
+        """Hace backup de todos los menús existentes en Firebase antes de resetear."""
+        if not self.db:
+            print("❌ Firebase no está inicializado")
+            return False
+
+        try:
+            snapshot = self.db.collection('paulina_menus').get()
+            backup = {}
+            for doc in snapshot:
+                backup[doc.id] = doc.to_dict()
+
+            if not backup:
+                print("📭 No hay menús en Firebase para respaldar")
+                return True
+
+            with open(output_path, 'w', encoding='utf-8') as f:
+                json.dump(backup, f, ensure_ascii=False, indent=2, default=str)
+
+            print(f"💾 Backup guardado: {output_path} ({len(backup)} menús)")
+            return True
+
+        except Exception as e:
+            print(f"❌ Error haciendo backup: {e}")
+            return False
+
+    def delete_all_menus(self) -> bool:
+        """Elimina todos los documentos de la colección paulina_menus."""
+        if not self.db:
+            print("❌ Firebase no está inicializado")
+            return False
+
+        try:
+            snapshot = self.db.collection('paulina_menus').get()
+            count = 0
+            for doc in snapshot:
+                doc.reference.delete()
+                count += 1
+
+            print(f"🗑️  {count} menús eliminados de Firebase")
+            return True
+
+        except Exception as e:
+            print(f"❌ Error eliminando menús: {e}")
             return False
 
 def main():
@@ -996,6 +1158,13 @@ Menús semanales con lista general:
 Descarga masiva:
   python paulina_scraper.py --todas            # Todas las semanas disponibles
   python paulina_scraper.py --rango 3-5        # Semanas 3, 4 y 5
+
+Reset de base de datos:
+  python paulina_scraper.py --reset-db         # Backup + borrar + re-descargar todos
+
+Autenticación:
+  python paulina_scraper.py --user EMAIL --password PASS
+  PAULINA_USER=email PAULINA_PASS=pass python paulina_scraper.py
 '''
     )
     parser.add_argument('--semana', '-s', type=int, help='Número de semana específico')
@@ -1014,11 +1183,18 @@ Descarga masiva:
     parser.add_argument('--especiales', '-e', action='store_true', help='Descubrir y descargar todos los menús especiales activos')
     parser.add_argument('--local', action='store_true', help='Solo guardar localmente, no subir a Firebase')
     parser.add_argument('--credentials', '-c', default='firebase_credentials.json', help='Archivo de credenciales Firebase')
+    parser.add_argument('--reset-db', action='store_true',
+                       help='Resetear base de datos: backup + borrar menús + re-descargar todos los activos')
+    parser.add_argument('--user', type=str, help='Email/usuario de almacen.paulinacocina.net (o env PAULINA_USER)')
+    parser.add_argument('--password', type=str, help='Contraseña de almacen.paulinacocina.net (o env PAULINA_PASS)')
 
     args = parser.parse_args()
 
     print("🍳 Paulina Cocina - Scraper de Lista de Compras")
     print("=" * 50)
+
+    # Inicializar sesión autenticada
+    get_session(args.user, args.password)
 
     # Modo: listar todos los menús activos
     if args.menus:
@@ -1035,6 +1211,89 @@ Descarga masiva:
             print("\n❌ No se encontraron menús activos")
         return 0
     
+    # Modo reset-db: backup + borrar + re-descargar todos
+    if args.reset_db:
+        print("\n🔄 RESET DE BASE DE DATOS")
+        print("=" * 50)
+
+        uploader = FirebaseUploader(args.credentials)
+        if not uploader.db:
+            print("❌ No se pudo conectar a Firebase. Abortando reset.")
+            return 1
+
+        # 1. Backup
+        print("\n📦 Paso 1: Backup de datos existentes...")
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        backup_path = f'backup_menus_{timestamp}.json'
+        uploader.backup_menus(backup_path)
+
+        # 2. Borrar todo
+        print("\n🗑️  Paso 2: Borrando menús existentes...")
+        uploader.delete_all_menus()
+
+        # 3. Descubrir y re-descargar todos los menús activos
+        print("\n🔍 Paso 3: Descubriendo menús activos...")
+        menus = MenuDiscoverer.descubrir_menus()
+
+        if not menus:
+            print("⚠️  No se encontraron menús activos. La base queda vacía.")
+            return 0
+
+        menus_semanales = [m for m in menus if m['tipo'] == 'semanal' and m['semana']]
+        menus_especiales = [m for m in menus if m['tipo'] == 'especial']
+
+        print(f"\n📋 Encontrados:")
+        print(f"   📅 {len(menus_semanales)} menús semanales")
+        print(f"   🌟 {len(menus_especiales)} menús especiales")
+
+        exitosas = 0
+
+        # Procesar menús semanales
+        for menu in menus_semanales:
+            print(f"\n{'='*50}")
+            print(f"📅 Semana {menu['semana']}: {menu['titulo']}")
+            extractor = PaulinaExtractor(semana=menu['semana'], modo='general')
+
+            if not extractor.descargar():
+                print(f"⚠️  No se pudo descargar: {menu['titulo']}")
+                continue
+
+            if not extractor.extraer():
+                print(f"⚠️  No se pudo extraer: {menu['titulo']}")
+                continue
+
+            datos = extractor.generar_json()
+            uploader.upload(extractor.semana, datos)
+            exitosas += 1
+
+        # Procesar menús especiales
+        for menu in menus_especiales:
+            print(f"\n{'='*50}")
+            print(f"🌟 {menu['titulo']}")
+            extractor = PaulinaExtractor(url=menu['url'], modo='general')
+
+            if not extractor.descargar():
+                print(f"⚠️  No se pudo descargar: {menu['titulo']}")
+                continue
+
+            if not extractor.extraer():
+                print(f"⚠️  No se pudo extraer: {menu['titulo']}")
+                continue
+
+            datos = extractor.generar_json()
+            if extractor.semana:
+                uploader.upload(extractor.semana, datos)
+            else:
+                slug = re.sub(r'[^\w]+', '_', extractor.titulo.lower()).strip('_')[:40]
+                uploader.upload_especial(slug, datos)
+            exitosas += 1
+
+        total = len(menus_semanales) + len(menus_especiales)
+        print(f"\n{'='*50}")
+        print(f"✨ Reset completo: {exitosas}/{total} menús cargados")
+        print(f"💾 Backup guardado en: {backup_path}")
+        return 0 if exitosas > 0 else 1
+
     # Modo especiales: descargar todos los menús especiales activos
     if args.especiales:
         menus = MenuDiscoverer.descubrir_menus()
@@ -1151,7 +1410,7 @@ Descarga masiva:
             json.dump(datos, f, ensure_ascii=False, indent=2)
         print(f"📄 JSON guardado: {output_path}")
 
-                # Subir a Firebase
+        # Subir a Firebase
         if not args.local:
             uploader = FirebaseUploader(args.credentials)
             if uploader and uploader.db:
