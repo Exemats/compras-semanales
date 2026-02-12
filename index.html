@@ -3563,6 +3563,30 @@
             return qty.toFixed(2).replace(/\.?0+$/, '');
         }
 
+        function buildCategoryIndex(sourceList) {
+            // Construye un índice inverso: ingrediente normalizado → categoría
+            // Usado para re-categorizar ingredientes de recetas diarias
+            const index = new Map();
+            if (!sourceList) return index;
+
+            for (const [cat, items] of Object.entries(sourceList)) {
+                if (!Array.isArray(items)) continue;
+                for (const item of items) {
+                    const key = normalizeIngredient(item);
+                    if (key && !index.has(key)) {
+                        index.set(key, cat);
+                    }
+                }
+            }
+            return index;
+        }
+
+        function categorizeIngredient(ingredient, categoryIndex) {
+            const key = normalizeIngredient(ingredient);
+            if (!key) return null;
+            return categoryIndex.get(key) || null;
+        }
+
         function combineIngredients(ingredientsList) {
             // Combina y suma ingredientes similares
             // ingredientsList: array de strings como "1 limon", "1/2 limon"
@@ -3668,16 +3692,54 @@
                         }
                     }
                 } else {
-                    // Días específicos: combinar y sumar ingredientes de esos días
-                    const allIngredients = [];
-                    selectedDias.forEach(dia => {
+                    // Días específicos: combinar ingredientes preservando categorías
+                    // Primero intentar usar ingredientes_por_categoria (datos nuevos del scraper)
+                    const hasPreCategorized = selectedDias.some(dia => {
                         const receta = data.recetas[dia];
-                        if (receta && receta.ingredientes) {
-                            allIngredients.push(...receta.ingredientes);
-                        }
+                        return receta && receta.ingredientes_por_categoria && Object.keys(receta.ingredientes_por_categoria).length > 0;
                     });
-                    const combinedIngredients = combineIngredients(allIngredients);
-                    itemsToImport['Supermercado 🏪'] = combinedIngredients;
+
+                    const byCategory = {};
+
+                    if (hasPreCategorized) {
+                        // Usar categorías pre-asignadas por el scraper
+                        selectedDias.forEach(dia => {
+                            const receta = data.recetas[dia];
+                            if (receta && receta.ingredientes_por_categoria) {
+                                for (const [cat, ingredients] of Object.entries(receta.ingredientes_por_categoria)) {
+                                    if (excludedExtras.has(cat)) continue;
+                                    if (!byCategory[cat]) byCategory[cat] = [];
+                                    byCategory[cat].push(...ingredients);
+                                }
+                            } else if (receta && receta.ingredientes) {
+                                // Fallback para días sin categorías pre-asignadas
+                                if (!byCategory['Supermercado 🏪']) byCategory['Supermercado 🏪'] = [];
+                                byCategory['Supermercado 🏪'].push(...receta.ingredientes);
+                            }
+                        });
+                    } else {
+                        // Fallback: reconstruir categorías usando índice inverso de la lista general
+                        const categoryIndex = buildCategoryIndex(sourceList);
+                        const allIngredients = [];
+                        selectedDias.forEach(dia => {
+                            const receta = data.recetas[dia];
+                            if (receta && receta.ingredientes) {
+                                allIngredients.push(...receta.ingredientes);
+                            }
+                        });
+
+                        allIngredients.forEach(ingredient => {
+                            const cat = categorizeIngredient(ingredient, categoryIndex) || 'Supermercado 🏪';
+                            if (excludedExtras.has(cat)) return;
+                            if (!byCategory[cat]) byCategory[cat] = [];
+                            byCategory[cat].push(ingredient);
+                        });
+                    }
+
+                    // Combinar y deduplicar ingredientes dentro de cada categoría
+                    for (const [cat, ingredients] of Object.entries(byCategory)) {
+                        itemsToImport[cat] = combineIngredients(ingredients);
+                    }
 
                     // Agregar categorías extras seleccionadas de la lista original
                     for (const extraCat of selectedExtras) {
@@ -3699,6 +3761,7 @@
                     return;
                 }
 
+                const categoryIndex = buildCategoryIndex(sourceList);
                 const allIngredients = [];
                 selectedIndices.forEach(index => {
                     const plato = data.platos[index];
@@ -3706,9 +3769,20 @@
                         allIngredients.push(...plato.ingredientes);
                     }
                 });
-                const combinedIngredients = combineIngredients(allIngredients);
-                itemsToImport['Supermercado 🏪'] = combinedIngredients;
- 
+
+                // Agrupar por categoría usando índice inverso
+                const byCategory = {};
+                allIngredients.forEach(ingredient => {
+                    const cat = categorizeIngredient(ingredient, categoryIndex) || 'Supermercado 🏪';
+                    if (excludedExtras.has(cat)) return;
+                    if (!byCategory[cat]) byCategory[cat] = [];
+                    byCategory[cat].push(ingredient);
+                });
+
+                for (const [cat, ingredients] of Object.entries(byCategory)) {
+                    itemsToImport[cat] = combineIngredients(ingredients);
+                }
+
                 // Agregar categorías extras
                 for (const extraCat of selectedExtras) {
                     if (sourceList[extraCat]) {

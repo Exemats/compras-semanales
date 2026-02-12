@@ -160,6 +160,7 @@ class PaulinaExtractor:
         self.platos = []  # Lista de platos para menús especiales (sin lista general)
         self.tiene_lista_general = True  # Se detecta automáticamente
         self.platos_seleccionados = None  # Lista de índices (1-5) de platos a incluir
+        self.dias_seleccionados = None  # Lista de índices (1-7) de días a incluir
 
     def detectar_semana_actual(self) -> int:
         """Detecta qué semana está disponible (la más reciente)."""
@@ -578,6 +579,13 @@ class PaulinaExtractor:
         """
         self.platos_seleccionados = platos
 
+    def set_dias_seleccionados(self, dias: list):
+        """
+        Define qué días incluir (índices 1-7).
+        Ej: [1, 2, 3] para Lunes, Martes, Miércoles.
+        """
+        self.dias_seleccionados = dias
+
     def _combinar_ingredientes(self, platos_indices: list = None) -> dict:
         """
         Combina ingredientes de múltiples platos en una lista unificada.
@@ -833,9 +841,57 @@ class PaulinaExtractor:
             resultado['general'] = {cat: data['items'] for cat, data in ordenar_categorias(self.lista_general).items()}
             resultado['veggie'] = {cat: data['items'] for cat, data in ordenar_categorias(self.lista_veggie).items()}
 
-        # Siempre incluir recetas por día si están disponibles
+        # Incluir recetas por día si están disponibles
         if self.recetas_por_dia:
-            resultado['recetas'] = self.recetas_por_dia
+            recetas = self.recetas_por_dia
+
+            # Filtrar por días seleccionados si aplica
+            if self.dias_seleccionados:
+                dias_buscar = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo']
+                dias_filtrados = {}
+                for idx in self.dias_seleccionados:
+                    if 1 <= idx <= len(dias_buscar):
+                        dia_nombre = dias_buscar[idx - 1].capitalize()
+                        for dia_key, dia_data in recetas.items():
+                            dia_normalizado = dia_key.lower().replace('á', 'a').replace('é', 'e')
+                            dia_buscado = dias_buscar[idx - 1].replace('á', 'a').replace('é', 'e')
+                            if dia_normalizado == dia_buscado:
+                                dias_filtrados[dia_key] = dia_data
+                                break
+                recetas = dias_filtrados
+
+            # Categorizar ingredientes de cada día usando la lista general como referencia
+            if self.lista_general:
+                # Construir índice inverso: ingrediente normalizado → categoría
+                ingrediente_a_categoria = {}
+                for cat_name, cat_data in self.lista_general.items():
+                    for item in cat_data.get('items', []):
+                        # Normalizar: minúsculas, sin acentos, sin cantidades iniciales
+                        norm = item.lower().strip()
+                        norm = re.sub(r'^[\d\s\/½¼¾,.]+\s*(?:g|gr|kg|ml|l|lt|lts|litros?|cdas?|cucharadas?|tazas?|unidad(?:es)?|paquetes?|latas?|sobres?)?\s*', '', norm, flags=re.I)
+                        norm = re.sub(r'\([^)]*\)', '', norm).strip()
+                        norm = re.sub(r'\s+', ' ', norm).strip()
+                        if norm and norm not in ingrediente_a_categoria:
+                            ingrediente_a_categoria[norm] = cat_name
+
+                for dia_key in recetas:
+                    ingredientes = recetas[dia_key].get('ingredientes', [])
+                    por_categoria = {}
+                    for ing in ingredientes:
+                        # Normalizar el ingrediente de la receta
+                        norm = ing.lower().strip()
+                        norm = re.sub(r'^[\d\s\/½¼¾,.]+\s*(?:g|gr|kg|ml|l|lt|lts|litros?|cdas?|cucharadas?|tazas?|unidad(?:es)?|paquetes?|latas?|sobres?)?\s*', '', norm, flags=re.I)
+                        norm = re.sub(r'\([^)]*\)', '', norm).strip()
+                        norm = re.sub(r'\s+', ' ', norm).strip()
+
+                        cat = ingrediente_a_categoria.get(norm, 'Supermercado 🏪')
+                        if cat not in por_categoria:
+                            por_categoria[cat] = []
+                        por_categoria[cat].append(ing)
+
+                    recetas[dia_key]['ingredientes_por_categoria'] = por_categoria
+
+            resultado['recetas'] = recetas
 
         return resultado
 
@@ -1076,7 +1132,7 @@ Descarga masiva:
         if platos_seleccionados:
             extractor.set_platos_seleccionados(platos_seleccionados)
         if dias_seleccionados:
-            extractor.set_platos_seleccionados(dias_seleccionados)
+            extractor.set_dias_seleccionados(dias_seleccionados)
 
         if not extractor.descargar():
             print(f"⚠️  No se pudo descargar el menú")
@@ -1171,7 +1227,7 @@ Descarga masiva:
         extractor = PaulinaExtractor(semana, modo=args.modo)
 
         if dias_seleccionados:
-            extractor.set_platos_seleccionados(dias_seleccionados)
+            extractor.set_dias_seleccionados(dias_seleccionados)
 
         # Descargar
         if not extractor.descargar():
@@ -1225,8 +1281,8 @@ Descarga masiva:
             extractor = PaulinaExtractor(url=menu['url'], modo=args.modo)
             
             if dias_seleccionados:
-                extractor.set_platos_seleccionados(dias_seleccionados)
-            
+                extractor.set_dias_seleccionados(dias_seleccionados)
+
             if not extractor.descargar():
                 print(f"⚠️  No se pudo descargar: {menu['titulo']}")
                 continue
