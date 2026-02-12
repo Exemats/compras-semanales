@@ -3776,8 +3776,10 @@
                 let itemToDays;
                 if (listType === 'veggie' && data.item_to_days_veggie) {
                     itemToDays = data.item_to_days_veggie;
+                    console.log('[Import] Usando item_to_days_veggie del scraper:', Object.keys(itemToDays).length, 'items mapeados');
                 } else if (data.item_to_days) {
                     itemToDays = data.item_to_days;
+                    console.log('[Import] Usando item_to_days del scraper:', Object.keys(itemToDays).length, 'items mapeados');
                 } else {
                     // Fallback: construir mapeo client-side con fuzzy matching
                     itemToDays = buildItemToDays(sourceList, data.recetas);
@@ -3785,6 +3787,7 @@
                 }
 
                 const selectedSet = new Set(selectedDias);
+                console.log('[Import] Días seleccionados:', selectedDias, '| Total días:', allDias.length);
 
                 for (const [cat, items] of Object.entries(sourceList)) {
                     // Excluir categorías extras desmarcadas
@@ -3795,13 +3798,13 @@
                         // Todos los días → lista completa
                         filtered = items;
                     } else {
-                        // Filtrar: mantener item si algún día seleccionado lo usa,
-                        // o si no tiene mapeo (item de despensa/genérico)
+                        // Filtrar: mantener item solo si algún día seleccionado lo usa
                         filtered = items.filter(item => {
                             const days = itemToDays[item];
-                            if (!days || days.length === 0) return true; // Sin mapeo = mantener
+                            if (!days || days.length === 0) return false; // Sin mapeo = excluir
                             return days.some(d => selectedSet.has(d));
                         });
+                        console.log(`[Import] Categoría "${cat}": ${items.length} items → ${filtered.length} filtrados`);
                     }
 
                     if (filtered.length > 0) {
