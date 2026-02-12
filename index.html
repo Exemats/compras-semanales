@@ -3084,17 +3084,17 @@
 
                 const currentMenus = [];
                 const historicalMenus = [];
+                const specialMenus = [];
 
                 docs.forEach(data => {
                     let isRecent = false;
                     let menuDate = null;
+                    const isSpecial = !data.semana;
 
                     // Prioridad 1: parsear fechas reales del menú
                     if (data.fechas) {
                         menuDate = parseFechaFin(data.fechas);
                         if (menuDate) {
-                            // Actual si la fecha fin del menú es reciente (últimos 10 días)
-                            // o si el menú es de esta semana o la próxima
                             isRecent = (now - menuDate) <= TEN_DAYS_MS;
                         }
                     }
@@ -3120,7 +3120,10 @@
                     // Guardar fecha parseada para ordenamiento
                     data._menuDate = menuDate;
 
-                    if (isRecent) {
+                    // Menús especiales (sin semana) van a su propia sección
+                    if (isSpecial) {
+                        specialMenus.push(data);
+                    } else if (isRecent) {
                         currentMenus.push(data);
                     } else {
                         historicalMenus.push(data);
@@ -3137,10 +3140,11 @@
 
                 currentMenus.sort(sortMenus);
                 historicalMenus.sort(sortMenus);
- 
+                specialMenus.sort(sortMenus);
+
                 const listEl = document.getElementById('availableWeeksList');
                 listEl.innerHTML = '';
-                
+
                 // Función auxiliar para crear una tarjeta de menú
                 const createMenuCard = (data) => {
                     const generalCount = data.general
@@ -3184,10 +3188,22 @@
                     });
                 }
 
+                // Renderizar menús especiales (siempre visibles)
+                if (specialMenus.length > 0) {
+                    const specialHeader = document.createElement('div');
+                    specialHeader.className = 'menu-section-header';
+                    specialHeader.textContent = '🌟 Menús especiales';
+                    listEl.appendChild(specialHeader);
+
+                    specialMenus.forEach(data => {
+                        listEl.appendChild(createMenuCard(data));
+                    });
+                }
+
                 // Renderizar menús históricos
                 if (historicalMenus.length > 0) {
-                    // Si no hay menús actuales, mostrar históricos expandidos
-                    const startCollapsed = currentMenus.length > 0;
+                    // Si no hay menús actuales ni especiales, mostrar históricos expandidos
+                    const startCollapsed = currentMenus.length > 0 || specialMenus.length > 0;
                     const historicalHeader = document.createElement('div');
                     historicalHeader.className = 'menu-section-header collapsible' + (startCollapsed ? ' collapsed' : '');
                     historicalHeader.setAttribute('role', 'button');
@@ -3588,6 +3604,43 @@
             return categoryIndex.get(key) || null;
         }
 
+        function buildItemToDays(sourceList, recetas) {
+            // Construye mapeo: item original de la lista general → [días que lo usan]
+            // Fallback client-side para datos que no tengan item_to_days del scraper
+            const itemToDays = {};
+            if (!sourceList || !recetas) return itemToDays;
+
+            // norm → [item texts originales]
+            const normToItems = new Map();
+            for (const [cat, items] of Object.entries(sourceList)) {
+                if (!Array.isArray(items)) continue;
+                for (const item of items) {
+                    const norm = normalizeIngredient(item);
+                    if (!norm) continue;
+                    if (!normToItems.has(norm)) normToItems.set(norm, []);
+                    normToItems.get(norm).push(item);
+                }
+            }
+
+            // Para cada día, matchear ingredientes contra la lista general
+            for (const [dia, receta] of Object.entries(recetas)) {
+                if (!receta || !receta.ingredientes) continue;
+                for (const ing of receta.ingredientes) {
+                    const norm = normalizeIngredient(ing);
+                    if (!norm) continue;
+                    const matched = normToItems.get(norm);
+                    if (matched) {
+                        for (const item of matched) {
+                            if (!itemToDays[item]) itemToDays[item] = [];
+                            if (!itemToDays[item].includes(dia)) itemToDays[item].push(dia);
+                        }
+                    }
+                }
+            }
+
+            return itemToDays;
+        }
+
         function combineIngredients(ingredientsList) {
             // Combina y suma ingredientes similares
             // ingredientsList: array de strings como "1 limon", "1/2 limon"
@@ -3649,160 +3702,148 @@
                 showToast('No hay datos cargados', 'error');
                 return;
             }
- 
+
             const data = pendingPaulinaData;
             const tieneRecetas = data.recetas && Object.keys(data.recetas).length > 0;
             const tienePlatos = data.platos && data.platos.length > 0;
             const listType = selectedImportMode; // 'general' or 'veggie'
             const sourceList = listType === 'veggie' ? data.veggie : data.general;
- 
+
             if (!sourceList || Object.keys(sourceList).length === 0) {
                 showToast('No hay datos para esta lista', 'error');
                 return;
             }
- 
-            // Obtener categorías extras seleccionadas
-            const selectedExtras = new Set();
-            document.querySelectorAll('#extrasContainer input[type="checkbox"]:checked').forEach(cb => {
-                selectedExtras.add(cb.dataset.category);
-            });
- 
+
             // Obtener categorías extras NO seleccionadas (para excluirlas)
             const excludedExtras = new Set();
             document.querySelectorAll('#extrasContainer input[type="checkbox"]:not(:checked)').forEach(cb => {
                 excludedExtras.add(cb.dataset.category);
             });
- 
+
             let itemsToImport = {};
- 
+
             if (tieneRecetas) {
-                // Menú semanal con recetas por día
+                // ========================================
+                // MENÚ SEMANAL: filtrado por días
+                // ========================================
+                // Lógica: la lista general ES la suma de todos los días.
+                // - Todos los días seleccionados → lista general completa
+                // - Algunos días deseleccionados → RESTAR ingredientes de esos días
+                //   (mantener un item si al menos un día seleccionado lo usa,
+                //    o si no tiene asociación a ningún día = item de despensa)
+
                 const selectedDias = getSelectedDias();
                 if (selectedDias.length === 0) {
                     showToast('Seleccioná al menos un día', 'warning');
                     return;
                 }
- 
+
                 const allDias = [...document.querySelectorAll('#diasContainer input[type="checkbox"]')].map(cb => cb.dataset.dia);
- 
-                if (selectedDias.length === allDias.length) {
-                    // Todos los días: usar lista pre-armada, filtrando extras excluidos
+                const allSelected = selectedDias.length === allDias.length;
+
+                // Obtener mapeo item→días (del scraper o construir client-side)
+                let itemToDays;
+                if (listType === 'veggie' && data.item_to_days_veggie) {
+                    itemToDays = data.item_to_days_veggie;
+                } else if (data.item_to_days) {
+                    itemToDays = data.item_to_days;
+                } else {
+                    // Fallback: construir mapeo client-side con fuzzy matching
+                    itemToDays = buildItemToDays(sourceList, data.recetas);
+                    console.log('[Import] item_to_days construido client-side:', Object.keys(itemToDays).length, 'items mapeados');
+                }
+
+                const selectedSet = new Set(selectedDias);
+
+                for (const [cat, items] of Object.entries(sourceList)) {
+                    // Excluir categorías extras desmarcadas
+                    if (excludedExtras.has(cat)) continue;
+
+                    let filtered;
+                    if (allSelected) {
+                        // Todos los días → lista completa
+                        filtered = items;
+                    } else {
+                        // Filtrar: mantener item si algún día seleccionado lo usa,
+                        // o si no tiene mapeo (item de despensa/genérico)
+                        filtered = items.filter(item => {
+                            const days = itemToDays[item];
+                            if (!days || days.length === 0) return true; // Sin mapeo = mantener
+                            return days.some(d => selectedSet.has(d));
+                        });
+                    }
+
+                    if (filtered.length > 0) {
+                        itemsToImport[cat] = filtered;
+                    }
+                }
+
+            } else if (tienePlatos) {
+                // ========================================
+                // MENÚ ESPECIAL: filtrado por platos
+                // ========================================
+                const selectedIndices = [];
+                document.querySelectorAll('#platosContainer input[type="checkbox"]:checked').forEach(cb => {
+                    const index = parseInt(cb.id.replace('plato_', ''));
+                    if (!isNaN(index)) selectedIndices.push(index);
+                });
+
+                if (selectedIndices.length === 0) {
+                    showToast('Seleccioná al menos un plato', 'warning');
+                    return;
+                }
+
+                const allPlatos = [...document.querySelectorAll('#platosContainer input[type="checkbox"]')].map(cb =>
+                    parseInt(cb.id.replace('plato_', ''))
+                );
+                const allSelected = selectedIndices.length === allPlatos.length;
+
+                if (allSelected) {
+                    // Todos los platos → lista general completa
                     for (const [cat, items] of Object.entries(sourceList)) {
                         if (!excludedExtras.has(cat)) {
                             itemsToImport[cat] = items;
                         }
                     }
                 } else {
-                    // Días específicos: combinar ingredientes preservando categorías
-                    // Primero intentar usar ingredientes_por_categoria (datos nuevos del scraper)
-                    const hasPreCategorized = selectedDias.some(dia => {
-                        const receta = data.recetas[dia];
-                        return receta && receta.ingredientes_por_categoria && Object.keys(receta.ingredientes_por_categoria).length > 0;
+                    // Platos específicos: combinar ingredientes de platos seleccionados
+                    const categoryIndex = buildCategoryIndex(sourceList);
+                    const allIngredients = [];
+                    selectedIndices.forEach(index => {
+                        const plato = data.platos[index];
+                        if (plato && plato.ingredientes) {
+                            allIngredients.push(...plato.ingredientes);
+                        }
                     });
 
                     const byCategory = {};
+                    allIngredients.forEach(ingredient => {
+                        const cat = categorizeIngredient(ingredient, categoryIndex) || 'Supermercado 🏪';
+                        if (excludedExtras.has(cat)) return;
+                        if (!byCategory[cat]) byCategory[cat] = [];
+                        byCategory[cat].push(ingredient);
+                    });
 
-                    if (hasPreCategorized) {
-                        // Usar categorías pre-asignadas por el scraper
-                        selectedDias.forEach(dia => {
-                            const receta = data.recetas[dia];
-                            if (receta && receta.ingredientes_por_categoria) {
-                                for (const [cat, ingredients] of Object.entries(receta.ingredientes_por_categoria)) {
-                                    if (excludedExtras.has(cat)) continue;
-                                    if (!byCategory[cat]) byCategory[cat] = [];
-                                    byCategory[cat].push(...ingredients);
-                                }
-                            } else if (receta && receta.ingredientes) {
-                                // Fallback para días sin categorías pre-asignadas
-                                if (!byCategory['Supermercado 🏪']) byCategory['Supermercado 🏪'] = [];
-                                byCategory['Supermercado 🏪'].push(...receta.ingredientes);
-                            }
-                        });
-                    } else {
-                        // Fallback: reconstruir categorías usando índice inverso de la lista general
-                        const categoryIndex = buildCategoryIndex(sourceList);
-                        const allIngredients = [];
-                        selectedDias.forEach(dia => {
-                            const receta = data.recetas[dia];
-                            if (receta && receta.ingredientes) {
-                                allIngredients.push(...receta.ingredientes);
-                            }
-                        });
-
-                        allIngredients.forEach(ingredient => {
-                            const cat = categorizeIngredient(ingredient, categoryIndex) || 'Supermercado 🏪';
-                            if (excludedExtras.has(cat)) return;
-                            if (!byCategory[cat]) byCategory[cat] = [];
-                            byCategory[cat].push(ingredient);
-                        });
-                    }
-
-                    // Combinar y deduplicar ingredientes dentro de cada categoría
                     for (const [cat, ingredients] of Object.entries(byCategory)) {
                         itemsToImport[cat] = combineIngredients(ingredients);
                     }
-
-                    // Agregar categorías extras seleccionadas de la lista original
-                    for (const extraCat of selectedExtras) {
-                        if (sourceList[extraCat]) {
-                            itemsToImport[extraCat] = sourceList[extraCat];
-                        }
-                    }
-                }
-            } else if (tienePlatos) {
-                // Menú especial con platos individuales
-                const selectedIndices = [];
-                document.querySelectorAll('#platosContainer input[type="checkbox"]:checked').forEach(cb => {
-                    const index = parseInt(cb.id.replace('plato_', ''));
-                    if (!isNaN(index)) selectedIndices.push(index);
-                });
- 
-                if (selectedIndices.length === 0) {
-                    showToast('Seleccioná al menos un plato', 'warning');
-                    return;
                 }
 
-                const categoryIndex = buildCategoryIndex(sourceList);
-                const allIngredients = [];
-                selectedIndices.forEach(index => {
-                    const plato = data.platos[index];
-                    if (plato && plato.ingredientes) {
-                        allIngredients.push(...plato.ingredientes);
-                    }
-                });
-
-                // Agrupar por categoría usando índice inverso
-                const byCategory = {};
-                allIngredients.forEach(ingredient => {
-                    const cat = categorizeIngredient(ingredient, categoryIndex) || 'Supermercado 🏪';
-                    if (excludedExtras.has(cat)) return;
-                    if (!byCategory[cat]) byCategory[cat] = [];
-                    byCategory[cat].push(ingredient);
-                });
-
-                for (const [cat, ingredients] of Object.entries(byCategory)) {
-                    itemsToImport[cat] = combineIngredients(ingredients);
-                }
-
-                // Agregar categorías extras
-                for (const extraCat of selectedExtras) {
-                    if (sourceList[extraCat]) {
-                        itemsToImport[extraCat] = sourceList[extraCat];
-                    }
-                }
             } else {
-                // Sin recetas ni platos: importar lista completa filtrando extras excluidos
+                // ========================================
+                // SIN RECETAS NI PLATOS: importar lista completa
+                // ========================================
                 for (const [cat, items] of Object.entries(sourceList)) {
                     if (!excludedExtras.has(cat)) {
                         itemsToImport[cat] = items;
                     }
                 }
             }
- 
-            // Construir itemsToImport wrapper para createWeekFromImport
+
+            // Construir wrapper para createWeekFromImport
             const importWrapper = {};
             importWrapper[listType] = itemsToImport;
- 
+
             await createWeekFromImport(data, importWrapper);
         }
 
