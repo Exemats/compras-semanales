@@ -501,41 +501,73 @@ class PaulinaExtractor:
         """Extrae los ingredientes de cada receta diaria."""
         recetas = {}
 
-        for dia in ['lunes', 'martes', 'miércoles', 'jueves', 'viernes']:
-            # Buscar sección del día
-            for elem in self.soup.find_all(['div', 'section', 'h2', 'h3']):
-                texto = elem.get_text()[:100].lower()
-                if dia in texto or dia.replace('é', 'e') in texto:
-                    # Encontrar la sección padre que contiene la receta
-                    parent = elem
-                    for _ in range(3):
-                        if parent.parent:
+        dias_buscar = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes']
+
+        for dia in dias_buscar:
+            dia_sin_acento = dia.replace('é', 'e').replace('á', 'a')
+
+            # Estrategia 1: buscar headings (h2/h3/h4/strong) que contengan el día.
+            # Priorizar headings sobre divs para evitar matchear wrappers grandes.
+            section = None
+            for heading in self.soup.find_all(['h2', 'h3', 'h4', 'strong']):
+                h_text = heading.get_text(strip=True).lower()
+                if len(h_text) > 80:
+                    continue
+                if dia in h_text or dia_sin_acento in h_text:
+                    # Subir hasta encontrar un contenedor con ingredientes
+                    parent = heading
+                    for _ in range(5):
+                        if parent.parent and parent.parent.name not in ['body', '[document]']:
                             parent = parent.parent
-
-                    # Buscar nombre de receta e ingredientes
-                    nombre_receta = ""
-                    ingredientes = []
-
-                    # Buscar título de receta
-                    for h in parent.find_all(['h2', 'h3', 'h4']):
-                        h_texto = h.get_text(strip=True)
-                        if len(h_texto) > 5 and dia not in h_texto.lower():
-                            nombre_receta = h_texto
-                            break
-
-                    # Buscar ingredientes (labels dentro de esta sección)
-                    for label in parent.find_all('label'):
-                        ing = label.get_text(strip=True)
-                        ing = re.sub(r'^[\[\]✓\s]+', '', ing).strip()
-                        if ing and len(ing) > 1:
-                            ingredientes.append(ing)
-
-                    if nombre_receta or ingredientes:
-                        recetas[dia.capitalize()] = {
-                            'nombre': nombre_receta,
-                            'ingredientes': ingredientes
-                        }
+                            if parent.find('label') or parent.find('li'):
+                                section = parent
+                                break
+                    if not section:
+                        section = heading.parent
                     break
+
+            # Estrategia 2: buscar por ID o data-attribute con nombre del día
+            if not section:
+                for id_pat in [dia, dia_sin_acento, f'receta_{dia}', f'receta_{dia_sin_acento}']:
+                    elem = self.soup.find(id=re.compile(rf'^{re.escape(id_pat)}', re.I))
+                    if not elem:
+                        elem = self.soup.find(attrs={'data-nombre': re.compile(rf'{re.escape(id_pat)}', re.I)})
+                    if elem:
+                        section = elem
+                        break
+
+            if not section:
+                continue
+
+            # Extraer nombre de receta (heading que NO sea el día)
+            nombre_receta = ""
+            for h in section.find_all(['h2', 'h3', 'h4']):
+                h_texto = h.get_text(strip=True)
+                h_lower = h_texto.lower()
+                if len(h_texto) > 5 and dia not in h_lower and dia_sin_acento not in h_lower:
+                    nombre_receta = h_texto
+                    break
+
+            # Extraer ingredientes: primero labels, luego li como fallback
+            ingredientes = []
+            for label in section.find_all('label'):
+                ing = label.get_text(strip=True)
+                ing = re.sub(r'^[\[\]✓\s]+', '', ing).strip()
+                if ing and len(ing) > 1 and len(ing) < 200:
+                    ingredientes.append(ing)
+
+            if not ingredientes:
+                for li in section.find_all('li'):
+                    texto = li.get_text(strip=True)
+                    texto = re.sub(r'^[\[\]✓\s•·\-]+', '', texto).strip()
+                    if texto and len(texto) > 1 and len(texto) < 200:
+                        ingredientes.append(texto)
+
+            if nombre_receta or ingredientes:
+                recetas[dia.capitalize()] = {
+                    'nombre': nombre_receta,
+                    'ingredientes': ingredientes
+                }
 
         return recetas
 

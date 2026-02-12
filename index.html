@@ -3051,30 +3051,73 @@
                 const docs = [];
                 snapshot.forEach(doc => docs.push(doc.data()));
 
-                // Separar menús en actuales e históricos usando el campo 'generado'
-                // (timestamp ISO del scraper) para determinar recencia de forma confiable.
-                // Fallback: comparación por número de semana si no hay timestamp.
+                // Parsear el campo 'fechas' (ej: "09 al 13 de febrero") para obtener
+                // la fecha real del menú y clasificar como actual o histórico.
+                const MESES = {
+                    'enero': 0, 'febrero': 1, 'marzo': 2, 'abril': 3,
+                    'mayo': 4, 'junio': 5, 'julio': 6, 'agosto': 7,
+                    'septiembre': 8, 'setiembre': 8, 'octubre': 9,
+                    'noviembre': 10, 'diciembre': 11
+                };
+
+                function parseFechaFin(fechas) {
+                    if (!fechas) return null;
+                    // "09 al 13 de febrero" → extraer día final y mes
+                    const match = fechas.match(/(\d{1,2})\s*(?:de\s+)?(\w+)\s*$/i);
+                    if (!match) return null;
+                    const dia = parseInt(match[1]);
+                    const mes = MESES[match[2].toLowerCase()];
+                    if (mes === undefined || isNaN(dia)) return null;
+                    // Usar el año actual; si la fecha resultante queda >6 meses en el futuro,
+                    // probablemente es del año pasado
+                    const now = new Date();
+                    let date = new Date(now.getFullYear(), mes, dia);
+                    if (date - now > 180 * 24 * 60 * 60 * 1000) {
+                        date = new Date(now.getFullYear() - 1, mes, dia);
+                    }
+                    return date;
+                }
+
                 const now = new Date();
-                const THREE_WEEKS_MS = 21 * 24 * 60 * 60 * 1000;
+                const TEN_DAYS_MS = 10 * 24 * 60 * 60 * 1000;
 
                 const currentMenus = [];
                 const historicalMenus = [];
 
                 docs.forEach(data => {
                     let isRecent = false;
+                    let menuDate = null;
 
-                    if (data.generado) {
-                        // Usar fecha real de generación del scraper
+                    // Prioridad 1: parsear fechas reales del menú
+                    if (data.fechas) {
+                        menuDate = parseFechaFin(data.fechas);
+                        if (menuDate) {
+                            // Actual si la fecha fin del menú es reciente (últimos 10 días)
+                            // o si el menú es de esta semana o la próxima
+                            isRecent = (now - menuDate) <= TEN_DAYS_MS;
+                        }
+                    }
+
+                    // Prioridad 2: usar generado como fallback
+                    if (!menuDate && data.generado) {
                         const generadoDate = new Date(data.generado);
-                        isRecent = !isNaN(generadoDate.getTime()) && (now - generadoDate) <= THREE_WEEKS_MS;
-                    } else if (data.semana) {
-                        // Fallback: comparación por semana del año (menos confiable)
+                        if (!isNaN(generadoDate.getTime())) {
+                            menuDate = generadoDate;
+                            isRecent = (now - generadoDate) <= TEN_DAYS_MS;
+                        }
+                    }
+
+                    // Prioridad 3: fallback por semana
+                    if (!menuDate && data.semana) {
                         const startOfYear = new Date(now.getFullYear(), 0, 1);
                         const daysSinceStart = Math.floor((now - startOfYear) / (24 * 60 * 60 * 1000));
                         const currentWeekOfYear = Math.ceil((daysSinceStart + startOfYear.getDay() + 1) / 7);
                         const weekDiff = Math.abs(currentWeekOfYear - data.semana);
-                        isRecent = weekDiff <= 3 && weekDiff < 25;
+                        isRecent = weekDiff <= 1;
                     }
+
+                    // Guardar fecha parseada para ordenamiento
+                    data._menuDate = menuDate;
 
                     if (isRecent) {
                         currentMenus.push(data);
@@ -3083,11 +3126,10 @@
                     }
                 });
 
-                // Ordenar por fecha de generación (más reciente primero),
-                // fallback por número de semana
+                // Ordenar por fecha del menú (más reciente primero)
                 const sortMenus = (a, b) => {
-                    const dateA = a.generado ? new Date(a.generado).getTime() : 0;
-                    const dateB = b.generado ? new Date(b.generado).getTime() : 0;
+                    const dateA = a._menuDate ? a._menuDate.getTime() : 0;
+                    const dateB = b._menuDate ? b._menuDate.getTime() : 0;
                     if (dateA || dateB) return dateB - dateA;
                     return (b.semana || 0) - (a.semana || 0);
                 };
