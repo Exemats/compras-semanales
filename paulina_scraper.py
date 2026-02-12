@@ -976,36 +976,71 @@ class PaulinaExtractor:
                                 break
                 recetas = dias_filtrados
 
-            # Categorizar ingredientes de cada día usando la lista general como referencia
-            if self.lista_general:
-                # Construir índice inverso: ingrediente normalizado → categoría
-                ingrediente_a_categoria = {}
-                for cat_name, cat_data in self.lista_general.items():
-                    for item in cat_data.get('items', []):
-                        # Normalizar: minúsculas, sin acentos, sin cantidades iniciales
-                        norm = item.lower().strip()
-                        norm = re.sub(r'^[\d\s\/½¼¾,.]+\s*(?:g|gr|kg|ml|l|lt|lts|litros?|cdas?|cucharadas?|tazas?|unidad(?:es)?|paquetes?|latas?|sobres?)?\s*', '', norm, flags=re.I)
-                        norm = re.sub(r'\([^)]*\)', '', norm).strip()
-                        norm = re.sub(r'\s+', ' ', norm).strip()
-                        if norm and norm not in ingrediente_a_categoria:
-                            ingrediente_a_categoria[norm] = cat_name
+            # Función de normalización de ingredientes
+            def _norm_ing(text):
+                n = text.lower().strip()
+                n = re.sub(r'^[\d\s\/½¼¾,.x×]+\s*(?:g|gr|kg|ml|l|lt|lts|litros?|cdas?|cucharadas?|tazas?|unidad(?:es)?|paquetes?|latas?|sobres?)?\s*', '', n, flags=re.I)
+                n = re.sub(r'\([^)]*\)', '', n).strip()
+                n = re.sub(r'\s+', ' ', n).strip()
+                # Remover "c/n", "a gusto" y similares del final
+                n = re.sub(r'\s*(c/n|a gusto|cantidad necesaria|opcional)\s*$', '', n, flags=re.I).strip()
+                return n
 
+            # Categorizar ingredientes de cada día usando la lista general como referencia
+            def _build_mappings(lista):
+                """Construye índice categoría y mapeo reverso item→días para una lista."""
+                if not lista:
+                    return {}, {}
+
+                # Índice: norm → categoría
+                ing_a_cat = {}
+                # Índice reverso: norm → [item texts originales de la lista general]
+                norm_to_items = {}
+
+                for cat_name, cat_data in lista.items():
+                    for item in cat_data.get('items', []):
+                        norm = _norm_ing(item)
+                        if norm:
+                            if norm not in ing_a_cat:
+                                ing_a_cat[norm] = cat_name
+                            if norm not in norm_to_items:
+                                norm_to_items[norm] = []
+                            norm_to_items[norm].append(item)
+
+                # Categorizar ingredientes por día
                 for dia_key in recetas:
                     ingredientes = recetas[dia_key].get('ingredientes', [])
                     por_categoria = {}
                     for ing in ingredientes:
-                        # Normalizar el ingrediente de la receta
-                        norm = ing.lower().strip()
-                        norm = re.sub(r'^[\d\s\/½¼¾,.]+\s*(?:g|gr|kg|ml|l|lt|lts|litros?|cdas?|cucharadas?|tazas?|unidad(?:es)?|paquetes?|latas?|sobres?)?\s*', '', norm, flags=re.I)
-                        norm = re.sub(r'\([^)]*\)', '', norm).strip()
-                        norm = re.sub(r'\s+', ' ', norm).strip()
-
-                        cat = ingrediente_a_categoria.get(norm, 'Supermercado 🏪')
+                        norm = _norm_ing(ing)
+                        cat = ing_a_cat.get(norm, 'Supermercado 🏪')
                         if cat not in por_categoria:
                             por_categoria[cat] = []
                         por_categoria[cat].append(ing)
-
                     recetas[dia_key]['ingredientes_por_categoria'] = por_categoria
+
+                # Construir item_to_days: item texto original de lista → [días que lo usan]
+                item_to_days = {}
+                for dia_key in recetas:
+                    ingredientes = recetas[dia_key].get('ingredientes', [])
+                    for ing in ingredientes:
+                        norm = _norm_ing(ing)
+                        if norm in norm_to_items:
+                            for general_item in norm_to_items[norm]:
+                                if general_item not in item_to_days:
+                                    item_to_days[general_item] = []
+                                if dia_key not in item_to_days[general_item]:
+                                    item_to_days[general_item].append(dia_key)
+
+                return ing_a_cat, item_to_days
+
+            if self.lista_general:
+                _, item_to_days = _build_mappings(self.lista_general)
+                resultado['item_to_days'] = item_to_days
+
+            if self.lista_veggie and self.lista_veggie != self.lista_general:
+                _, item_to_days_veggie = _build_mappings(self.lista_veggie)
+                resultado['item_to_days_veggie'] = item_to_days_veggie
 
             resultado['recetas'] = recetas
 
