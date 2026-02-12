@@ -3050,46 +3050,48 @@
                 // Recolectar todos los documentos
                 const docs = [];
                 snapshot.forEach(doc => docs.push(doc.data()));
-                
-                // Determinar el número de semana actual del año
-                // Nota: Cálculo simplificado que funciona bien dentro del mismo año
-                // En límites de año (dic/ene), puede categorizar incorrectamente:
-                // - Menú semana 52 visto en semana 2 se marcará como histórico (debería ser actual)
-                // - Para mejorar, se requeriría comparar fechas reales en lugar de números de semana
-                // Como los menús se consumen típicamente dentro de su misma semana/mes, esto es aceptable
+
+                // Separar menús en actuales e históricos usando el campo 'generado'
+                // (timestamp ISO del scraper) para determinar recencia de forma confiable.
+                // Fallback: comparación por número de semana si no hay timestamp.
                 const now = new Date();
-                const startOfYear = new Date(now.getFullYear(), 0, 1);
-                const daysSinceStart = Math.floor((now - startOfYear) / (24 * 60 * 60 * 1000));
-                const currentWeekOfYear = Math.ceil((daysSinceStart + startOfYear.getDay() + 1) / 7);
-                
-                // Separar menús en actuales e históricos
-                // Menús especiales siempre son "actuales"
-                // Menús de las últimas semanas son "actuales", los antiguos van a "históricos"
+                const THREE_WEEKS_MS = 21 * 24 * 60 * 60 * 1000;
+
                 const currentMenus = [];
                 const historicalMenus = [];
-                
+
                 docs.forEach(data => {
-                    const isSpecial = !data.semana;
-                    // Consideramos "recientes" los menús dentro de un rango de 3 semanas
-                    // Usamos Math.abs para manejar algunos casos, pero no resuelve límites de año
-                    const weekDiff = data.semana ? Math.abs(currentWeekOfYear - data.semana) : 0;
-                    const isRecent = data.semana && weekDiff <= 3 && weekDiff < 25; // Evitar falsos positivos con años diferentes
-                    
-                    if (isSpecial || isRecent) {
+                    let isRecent = false;
+
+                    if (data.generado) {
+                        // Usar fecha real de generación del scraper
+                        const generadoDate = new Date(data.generado);
+                        isRecent = !isNaN(generadoDate.getTime()) && (now - generadoDate) <= THREE_WEEKS_MS;
+                    } else if (data.semana) {
+                        // Fallback: comparación por semana del año (menos confiable)
+                        const startOfYear = new Date(now.getFullYear(), 0, 1);
+                        const daysSinceStart = Math.floor((now - startOfYear) / (24 * 60 * 60 * 1000));
+                        const currentWeekOfYear = Math.ceil((daysSinceStart + startOfYear.getDay() + 1) / 7);
+                        const weekDiff = Math.abs(currentWeekOfYear - data.semana);
+                        isRecent = weekDiff <= 3 && weekDiff < 25;
+                    }
+
+                    if (isRecent) {
                         currentMenus.push(data);
                     } else {
                         historicalMenus.push(data);
                     }
                 });
-                
-                // Ordenar: especiales primero, luego por semana descendente
+
+                // Ordenar por fecha de generación (más reciente primero),
+                // fallback por número de semana
                 const sortMenus = (a, b) => {
-                    const aIsSpecial = !a.semana;
-                    const bIsSpecial = !b.semana;
-                    if (aIsSpecial !== bIsSpecial) return aIsSpecial ? -1 : 1;
+                    const dateA = a.generado ? new Date(a.generado).getTime() : 0;
+                    const dateB = b.generado ? new Date(b.generado).getTime() : 0;
+                    if (dateA || dateB) return dateB - dateA;
                     return (b.semana || 0) - (a.semana || 0);
                 };
-                
+
                 currentMenus.sort(sortMenus);
                 historicalMenus.sort(sortMenus);
  
@@ -3133,30 +3135,32 @@
                     currentHeader.className = 'menu-section-header';
                     currentHeader.textContent = '📅 Actualmente disponibles';
                     listEl.appendChild(currentHeader);
-                    
+
                     currentMenus.forEach(data => {
                         listEl.appendChild(createMenuCard(data));
                     });
                 }
-                
+
                 // Renderizar menús históricos
                 if (historicalMenus.length > 0) {
+                    // Si no hay menús actuales, mostrar históricos expandidos
+                    const startCollapsed = currentMenus.length > 0;
                     const historicalHeader = document.createElement('div');
-                    historicalHeader.className = 'menu-section-header collapsible collapsed';
+                    historicalHeader.className = 'menu-section-header collapsible' + (startCollapsed ? ' collapsed' : '');
                     historicalHeader.setAttribute('role', 'button');
                     historicalHeader.setAttribute('tabindex', '0');
-                    historicalHeader.setAttribute('aria-expanded', 'false');
+                    historicalHeader.setAttribute('aria-expanded', startCollapsed ? 'false' : 'true');
                     
                     const toggleIcon = document.createElement('span');
                     toggleIcon.className = 'menu-section-toggle';
                     toggleIcon.textContent = '▼';
                     historicalHeader.appendChild(toggleIcon);
-                    historicalHeader.appendChild(document.createTextNode(' 📚 Histórico'));
+                    historicalHeader.appendChild(document.createTextNode(` 📚 Histórico (${historicalMenus.length})`));
                     
                     listEl.appendChild(historicalHeader);
                     
                     const historicalContent = document.createElement('div');
-                    historicalContent.className = 'menu-section-content collapsed';
+                    historicalContent.className = 'menu-section-content' + (startCollapsed ? ' collapsed' : '');
                     historicalMenus.forEach(data => {
                         historicalContent.appendChild(createMenuCard(data));
                     });
