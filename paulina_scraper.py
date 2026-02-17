@@ -620,7 +620,7 @@ class PaulinaExtractor:
         """Extrae los ingredientes de cada receta diaria."""
         recetas = {}
 
-        dias_buscar = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes']
+        dias_buscar = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo']
 
         for dia in dias_buscar:
             dia_sin_acento = dia.replace('é', 'e').replace('á', 'a')
@@ -672,15 +672,40 @@ class PaulinaExtractor:
             for label in section.find_all('label'):
                 ing = label.get_text(strip=True)
                 ing = re.sub(r'^[\[\]✓\s]+', '', ing).strip()
+                # Validar que parece un ingrediente real
                 if ing and len(ing) > 1 and len(ing) < 200:
-                    ingredientes.append(ing)
+                    # Verificar que no sea un título, instrucción o HTML residual
+                    if not re.match(r'^(paso|step|instruc|prepar|cocin|herv|serv)', ing.lower()):
+                        ingredientes.append(ing)
 
+            # Estrategia 2: buscar li sueltos si no hay labels
             if not ingredientes:
                 for li in section.find_all('li'):
                     texto = li.get_text(strip=True)
                     texto = re.sub(r'^[\[\]✓\s•·\-]+', '', texto).strip()
                     if texto and len(texto) > 1 and len(texto) < 200:
-                        ingredientes.append(texto)
+                        if not re.match(r'^(paso|step|instruc|prepar|cocin|herv|serv)', texto.lower()):
+                            ingredientes.append(texto)
+
+            # Estrategia 3: buscar listas ul/ol si no hay labels ni li sueltos
+            if not ingredientes:
+                for ul in section.find_all(['ul', 'ol']):
+                    for li in ul.find_all('li', recursive=False):
+                        texto = li.get_text(strip=True)
+                        texto = re.sub(r'^[\[\]✓\s•·\-]+', '', texto).strip()
+                        if texto and len(texto) > 1 and len(texto) < 200:
+                            if not re.match(r'^(paso|step|instruc|prepar|cocin|herv|serv)', texto.lower()):
+                                ingredientes.append(texto)
+
+            # Deduplicar ingredientes del día
+            seen = set()
+            ingredientes_unicos = []
+            for ing in ingredientes:
+                norm = ing.lower().strip()
+                if norm and norm not in seen:
+                    seen.add(norm)
+                    ingredientes_unicos.append(ing)
+            ingredientes = ingredientes_unicos
 
             if nombre_receta or ingredientes:
                 recetas[dia.capitalize()] = {
@@ -983,15 +1008,29 @@ class PaulinaExtractor:
                                 break
                 recetas = dias_filtrados
 
-            # Función de normalización de ingredientes
+            # Función de normalización de ingredientes (unificada con JS)
             def _norm_ing(text):
+                import unicodedata
                 n = text.lower().strip()
+                # Eliminar cantidades y unidades
                 n = re.sub(r'^[\d\s\/½¼¾,.x×]+\s*(?:g|gr|kg|ml|l|lt|lts|litros?|cdas?|cucharadas?|tazas?|unidad(?:es)?|paquetes?|latas?|sobres?)?\s*', '', n, flags=re.I)
+                # Eliminar palabras comunes de cantidad al inicio
+                n = re.sub(r'^(un|una|uno|dos|tres|cuatro|cinco|medio|media|pizca|chorro|poco|mucho)\s+', '', n, flags=re.I)
+                # Eliminar paréntesis
                 n = re.sub(r'\([^)]*\)', '', n).strip()
-                n = re.sub(r'\s+', ' ', n).strip()
-                # Remover "c/n", "a gusto" y similares del final
+                # Eliminar "c/n", "a gusto", etc.
                 n = re.sub(r'\s*(c/n|a gusto|cantidad necesaria|opcional)\s*$', '', n, flags=re.I).strip()
-                return n
+                # Eliminar acentos
+                n = unicodedata.normalize('NFD', n)
+                n = re.sub(r'[\u0300-\u036f]', '', n)
+                # Eliminar preposición "de" al inicio
+                n = re.sub(r'^de\s+', '', n)
+                # Solo caracteres alfanuméricos y espacios
+                n = re.sub(r'[^a-z\s]', ' ', n)
+                n = re.sub(r'\s+', ' ', n).strip()
+                # Limitar a 3 palabras significativas (> 1 caracter)
+                words = [w for w in n.split() if len(w) > 1]
+                return ' '.join(words[:3])
 
             # Categorizar ingredientes de cada día usando la lista general como referencia
             def _build_mappings(lista):

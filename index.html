@@ -1957,6 +1957,7 @@
 
         // Normalización más agresiva para detectar duplicados de ingredientes
         // Ej: "1 puré de tomate (usarás 2 cdas.)" y "1 puré de tomate (vas a usar 2 cdas.)"
+        // Normalización unificada con Python para matching consistente
         // ambos se normalizan a "pure tomate"
         function normalizeIngredient(text) {
             let normalized = text.toLowerCase()
@@ -1970,6 +1971,12 @@
 
             // Remover palabras comunes de cantidad al inicio
             normalized = normalized.replace(/^(un|una|uno|dos|tres|cuatro|cinco|medio|media|pizca|chorro|poco|mucho)\s+/gi, '');
+
+            // Remover "c/n", "a gusto", etc. al final
+            normalized = normalized.replace(/\s*(c\/n|a gusto|cantidad necesaria|opcional)\s*$/gi, '');
+
+            // Eliminar preposición "de" al inicio
+            normalized = normalized.replace(/^de\s+/i, '');
 
             // Remover caracteres especiales y números restantes
             normalized = normalized.replace(/[^a-z\s]/g, ' ');
@@ -3674,6 +3681,18 @@
                 }
             }
 
+            // Log de diagnóstico para items sin mapear
+            const unmapped = [];
+            for (const [cat, items] of Object.entries(sourceList)) {
+                if (!Array.isArray(items)) continue;
+                for (const item of items) {
+                    if (!itemToDays[item]) unmapped.push(item);
+                }
+            }
+            if (unmapped.length > 0) {
+                console.warn(`[buildItemToDays] ${unmapped.length} items sin mapear:`, unmapped);
+            }
+
             return itemToDays;
         }
 
@@ -3798,7 +3817,11 @@
                         } else {
                             filtered = items.filter(item => {
                                 const days = itemToDays ? itemToDays[item] : null;
-                                if (!days || days.length === 0) return true;
+                                if (!days || days.length === 0) {
+                                    // Item no mapeado a ningún día: incluir solo si está en categorías base
+                                    const categoriasBase = ['Ya tenés en casa ✅', 'Comodín 👑'];
+                                    return categoriasBase.includes(cat);
+                                }
                                 return days.some(d => selectedSet.has(d));
                             });
                         }
