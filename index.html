@@ -2627,26 +2627,34 @@
         async function syncFromFirestore() {
             if (!firebaseReady || !db) return;
 
-            const snapshot = await db.collection('weeks').get();
+            try {
+                const snapshot = await db.collection('weeks').get();
 
-            snapshot.forEach(doc => {
-                const weekData = doc.data();
-                const localWeek = weeks[doc.id];
+                snapshot.forEach(doc => {
+                    const weekData = doc.data();
+                    const localWeek = weeks[doc.id];
 
-                // Si no existe localmente, usar el de la nube
-                if (!localWeek) {
-                    weeks[doc.id] = {
-                        id: doc.id,
-                        ...weekData
-                    };
-                } else {
-                    // Merge inteligente a nivel de item
-                    weeks[doc.id] = mergeWeekData(localWeek, weekData, doc.id);
-                }
-            });
+                    // Si no existe localmente, usar el de la nube
+                    if (!localWeek) {
+                        weeks[doc.id] = {
+                            id: doc.id,
+                            ...weekData
+                        };
+                    } else {
+                        // Merge inteligente a nivel de item
+                        weeks[doc.id] = mergeWeekData(localWeek, weekData, doc.id);
+                    }
+                });
 
-            // Iniciar listener en tiempo real
-            startRealtimeSync();
+                saveToLocalStorage();
+            } catch (error) {
+                console.error('Error sincronizando desde Firestore:', error);
+                // Re-lanzar para que los callers manejen el error en su contexto
+                throw error;
+            } finally {
+                // Siempre iniciar listener en tiempo real (funciona offline-first)
+                startRealtimeSync();
+            }
         }
 
         // Merge inteligente: compara items individuales por timestamp
@@ -2675,12 +2683,11 @@
                     // Item solo existe en la nube
                     merged.items[itemId] = cloudItem;
                 } else if (!cloudItem) {
-                    // Item solo existe local - mantener si tiene timestamp reciente o fue eliminado en nube
-                    // Solo mantener si es reciente (últimos 30 segundos)
-                    if (localItem.itemUpdatedAt && Date.now() - localItem.itemUpdatedAt < 30000) {
-                        merged.items[itemId] = localItem;
-                    }
-                    // Si no, fue eliminado en la nube, no lo agregamos
+                    // Item solo existe local: mantener siempre.
+                    // Puede ser un item nuevo agregado offline que aún no se sincronizó.
+                    // Si fue eliminado desde otro dispositivo, el listener en tiempo real
+                    // se encargará de propagarlo correctamente.
+                    merged.items[itemId] = localItem;
                 } else {
                     // Existe en ambos - usar el más reciente
                     const localTs = localItem.itemUpdatedAt || 0;
@@ -2696,16 +2703,14 @@
             if (!firebaseReady || !db || unsubscribeListener) return;
 
             unsubscribeListener = db.collection('weeks').onSnapshot(snapshot => {
-                // Ignorar cambios propios (dentro de 1 segundo de guardar)
-                if (Date.now() - lastSaveTime < 1000) return;
-
                 let hasChanges = false;
                 let updatedCurrentWeek = false;
 
                 snapshot.docChanges().forEach(change => {
-                    // Verificar si es nuestro propio guardado
+                    // Verificar si es nuestro propio guardado usando lastSaveId
+                    // (más confiable que comparación temporal)
                     const weekData = change.doc.data();
-                    if (weekData.lastSaveId === localSaveId && Date.now() - lastSaveTime < 3000) {
+                    if (weekData.lastSaveId && weekData.lastSaveId === localSaveId) {
                         return; // Ignorar nuestro propio guardado
                     }
 
@@ -3737,11 +3742,13 @@
             const data = pendingPaulinaData;
             const tieneRecetas = data.recetas && Object.keys(data.recetas).length > 0;
             const tienePlatos = data.platos && data.platos.length > 0;
-            const listType = selectedImportMode; // 'general' or 'veggie'
-            const sourceList = listType === 'veggie' ? data.veggie : data.general;
 
-            if (!sourceList || Object.keys(sourceList).length === 0) {
-                showToast('No hay datos para esta lista', 'error');
+            const hasGeneral = data.general && Object.keys(data.general).length > 0;
+            const hasVeggie = data.veggie && Object.keys(data.veggie).length > 0;
+            const hasSeparateVeggie = hasVeggie && JSON.stringify(data.veggie) !== JSON.stringify(data.general);
+
+            if (!hasGeneral && !hasVeggie) {
+                showToast('No hay datos para importar', 'error');
                 return;
             }
 
@@ -3751,133 +3758,150 @@
                 excludedExtras.add(cb.dataset.category);
             });
 
-            let itemsToImport = {};
-
+            // Validaciones previas según tipo de menú
             if (tieneRecetas) {
-                // ========================================
-                // MENÚ SEMANAL: filtrado por días
-                // ========================================
-                // Lógica: la lista general ES la suma de todos los días.
-                // - Todos los días seleccionados → lista general completa
-                // - Algunos días deseleccionados → RESTAR ingredientes de esos días
-                //   (mantener un item si al menos un día seleccionado lo usa,
-                //    o si no tiene asociación a ningún día = item de despensa)
-
                 const selectedDias = getSelectedDias();
                 if (selectedDias.length === 0) {
                     showToast('Seleccioná al menos un día', 'warning');
                     return;
                 }
-
-                const allDias = [...document.querySelectorAll('#diasContainer input[type="checkbox"]')].map(cb => cb.dataset.dia);
-                const allSelected = selectedDias.length === allDias.length;
-
-                // Obtener mapeo item→días (del scraper o construir client-side)
-                let itemToDays;
-                if (listType === 'veggie' && data.item_to_days_veggie) {
-                    itemToDays = data.item_to_days_veggie;
-                    console.log('[Import] Usando item_to_days_veggie del scraper:', Object.keys(itemToDays).length, 'items mapeados');
-                } else if (data.item_to_days) {
-                    itemToDays = data.item_to_days;
-                    console.log('[Import] Usando item_to_days del scraper:', Object.keys(itemToDays).length, 'items mapeados');
-                } else {
-                    // Fallback: construir mapeo client-side con fuzzy matching
-                    itemToDays = buildItemToDays(sourceList, data.recetas);
-                    console.log('[Import] item_to_days construido client-side:', Object.keys(itemToDays).length, 'items mapeados');
-                }
-
-                const selectedSet = new Set(selectedDias);
-                console.log('[Import] Días seleccionados:', selectedDias, '| Total días:', allDias.length);
-
-                for (const [cat, items] of Object.entries(sourceList)) {
-                    // Excluir categorías extras desmarcadas
-                    if (excludedExtras.has(cat)) continue;
-
-                    let filtered;
-                    if (allSelected) {
-                        // Todos los días → lista completa
-                        filtered = items;
-                    } else {
-                        // Filtrar: mantener item si algún día seleccionado lo usa,
-                        // o si no tiene mapeo (item de despensa/genérico)
-                        filtered = items.filter(item => {
-                            const days = itemToDays[item];
-                            if (!days || days.length === 0) return true; // Sin mapeo = mantener (despensa)
-                            return days.some(d => selectedSet.has(d));
-                        });
-                        console.log(`[Import] Categoría "${cat}": ${items.length} items → ${filtered.length} filtrados (incluye items de despensa sin mapeo)`);
-                    }
-
-                    if (filtered.length > 0) {
-                        itemsToImport[cat] = filtered;
-                    }
-                }
-
             } else if (tienePlatos) {
-                // ========================================
-                // MENÚ ESPECIAL: filtrado por platos
-                // ========================================
                 const selectedIndices = [];
                 document.querySelectorAll('#platosContainer input[type="checkbox"]:checked').forEach(cb => {
                     const index = parseInt(cb.id.replace('plato_', ''));
                     if (!isNaN(index)) selectedIndices.push(index);
                 });
-
                 if (selectedIndices.length === 0) {
                     showToast('Seleccioná al menos un plato', 'warning');
                     return;
                 }
-
-                const allPlatos = [...document.querySelectorAll('#platosContainer input[type="checkbox"]')].map(cb =>
-                    parseInt(cb.id.replace('plato_', ''))
-                );
-                const allSelected = selectedIndices.length === allPlatos.length;
-
-                if (allSelected) {
-                    // Todos los platos → lista general completa
-                    for (const [cat, items] of Object.entries(sourceList)) {
-                        if (!excludedExtras.has(cat)) {
-                            itemsToImport[cat] = items;
-                        }
-                    }
-                } else {
-                    // Platos específicos: combinar ingredientes de platos seleccionados
-                    const categoryIndex = buildCategoryIndex(sourceList);
-                    const allIngredients = [];
-                    selectedIndices.forEach(index => {
-                        const plato = data.platos[index];
-                        if (plato && plato.ingredientes) {
-                            allIngredients.push(...plato.ingredientes);
-                        }
-                    });
-
-                    const byCategory = {};
-                    allIngredients.forEach(ingredient => {
-                        const cat = categorizeIngredient(ingredient, categoryIndex) || 'Supermercado 🏪';
-                        if (excludedExtras.has(cat)) return;
-                        if (!byCategory[cat]) byCategory[cat] = [];
-                        byCategory[cat].push(ingredient);
-                    });
-
-                    for (const [cat, ingredients] of Object.entries(byCategory)) {
-                        itemsToImport[cat] = combineIngredients(ingredients);
-                    }
-                }
-
-            } else {
-                // ========================================
-                // SIN RECETAS NI PLATOS: importar lista completa
-                // ========================================
-                for (const [cat, items] of Object.entries(sourceList)) {
-                    if (!excludedExtras.has(cat)) {
-                        itemsToImport[cat] = items;
-                    }
-                }
             }
 
-            // Construir wrapper para createWeekFromImport
+            // Función helper: filtra una sourceList según la configuración seleccionada
+            function filterSourceList(sourceList, itemToDays) {
+                if (!sourceList || Object.keys(sourceList).length === 0) return {};
+
+                let result = {};
+
+                if (tieneRecetas) {
+                    const selectedDias = getSelectedDias();
+                    const allDias = [...document.querySelectorAll('#diasContainer input[type="checkbox"]')].map(cb => cb.dataset.dia);
+                    const allSelected = selectedDias.length === allDias.length;
+                    const selectedSet = new Set(selectedDias);
+
+                    for (const [cat, items] of Object.entries(sourceList)) {
+                        if (excludedExtras.has(cat)) continue;
+
+                        let filtered;
+                        if (allSelected) {
+                            filtered = items;
+                        } else {
+                            filtered = items.filter(item => {
+                                const days = itemToDays ? itemToDays[item] : null;
+                                if (!days || days.length === 0) return true;
+                                return days.some(d => selectedSet.has(d));
+                            });
+                        }
+
+                        if (filtered.length > 0) {
+                            result[cat] = filtered;
+                        }
+                    }
+
+                } else if (tienePlatos) {
+                    const selectedIndices = [];
+                    document.querySelectorAll('#platosContainer input[type="checkbox"]:checked').forEach(cb => {
+                        const index = parseInt(cb.id.replace('plato_', ''));
+                        if (!isNaN(index)) selectedIndices.push(index);
+                    });
+
+                    const allPlatos = [...document.querySelectorAll('#platosContainer input[type="checkbox"]')].map(cb =>
+                        parseInt(cb.id.replace('plato_', ''))
+                    );
+                    const allSelected = selectedIndices.length === allPlatos.length;
+
+                    if (allSelected) {
+                        for (const [cat, items] of Object.entries(sourceList)) {
+                            if (!excludedExtras.has(cat)) {
+                                result[cat] = items;
+                            }
+                        }
+                    } else {
+                        const categoryIndex = buildCategoryIndex(sourceList);
+                        const allIngredients = [];
+                        selectedIndices.forEach(index => {
+                            const plato = data.platos[index];
+                            if (plato && plato.ingredientes) {
+                                allIngredients.push(...plato.ingredientes);
+                            }
+                        });
+
+                        const byCategory = {};
+                        allIngredients.forEach(ingredient => {
+                            const cat = categorizeIngredient(ingredient, categoryIndex) || 'Supermercado 🏪';
+                            if (excludedExtras.has(cat)) return;
+                            if (!byCategory[cat]) byCategory[cat] = [];
+                            byCategory[cat].push(ingredient);
+                        });
+
+                        for (const [cat, ingredients] of Object.entries(byCategory)) {
+                            result[cat] = combineIngredients(ingredients);
+                        }
+                    }
+
+                } else {
+                    for (const [cat, items] of Object.entries(sourceList)) {
+                        if (!excludedExtras.has(cat)) {
+                            result[cat] = items;
+                        }
+                    }
+                }
+
+                return result;
+            }
+
+            // Resolver item_to_days para cada lista
+            function resolveItemToDays(sourceList, listType) {
+                if (listType === 'veggie' && data.item_to_days_veggie) {
+                    return data.item_to_days_veggie;
+                } else if (data.item_to_days) {
+                    return data.item_to_days;
+                } else if (tieneRecetas) {
+                    return buildItemToDays(sourceList, data.recetas);
+                }
+                return null;
+            }
+
+            // Construir wrapper importando AMBAS listas
             const importWrapper = {};
-            importWrapper[listType] = itemsToImport;
+
+            // Siempre importar la lista general si existe
+            if (hasGeneral) {
+                const generalItemToDays = resolveItemToDays(data.general, 'general');
+                importWrapper.general = filterSourceList(data.general, generalItemToDays);
+                console.log('[Import] Lista general:', Object.values(importWrapper.general).reduce((s, arr) => s + arr.length, 0), 'items');
+            }
+
+            // Si hay veggie diferenciada, importarla también
+            if (hasSeparateVeggie) {
+                const veggieItemToDays = resolveItemToDays(data.veggie, 'veggie');
+                importWrapper.veggie = filterSourceList(data.veggie, veggieItemToDays);
+                console.log('[Import] Lista veggie:', Object.values(importWrapper.veggie).reduce((s, arr) => s + arr.length, 0), 'items');
+            } else if (hasGeneral) {
+                // Si no hay veggie separada, duplicar la general como veggie
+                // para que ambas vistas tengan contenido
+                importWrapper.veggie = importWrapper.general;
+                console.log('[Import] Lista veggie: copia de general');
+            }
+
+            // Verificar que hay algo para importar
+            const totalItems = Object.values(importWrapper).reduce((total, list) =>
+                total + Object.values(list).reduce((s, arr) => s + arr.length, 0), 0);
+
+            if (totalItems === 0) {
+                showToast('No hay items para importar con esta configuración', 'warning');
+                return;
+            }
 
             await createWeekFromImport(data, importWrapper);
         }
