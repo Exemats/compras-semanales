@@ -1887,6 +1887,10 @@
         let searchFilter = ''; // Filtro de búsqueda actual
         let itemIdCounter = 0;
 
+        // ==================== CONSTANTS ====================
+        const MAX_WEEKS = 8; // Límite máximo de listas
+        const BASE_CATEGORIES = ['Ya tenés en casa ✅', 'Comodín 👑']; // Categorías base que siempre se incluyen
+
 
         // ==================== INIT ====================
         document.addEventListener('DOMContentLoaded', async function() {
@@ -2828,7 +2832,6 @@
         }
 
         async function enforceWeekLimit() {
-            const MAX_WEEKS = 8;
             const weekIds = Object.keys(weeks);
             if (weekIds.length <= MAX_WEEKS) return;
 
@@ -3880,8 +3883,7 @@
                                 const days = itemToDays ? itemToDays[item] : null;
                                 if (!days || days.length === 0) {
                                     // Item no mapeado a ningún día: incluir solo si está en categorías base
-                                    const categoriasBase = ['Ya tenés en casa ✅', 'Comodín 👑'];
-                                    return categoriasBase.includes(cat);
+                                    return BASE_CATEGORIES.includes(cat);
                                 }
                                 return days.some(d => selectedSet.has(d));
                             });

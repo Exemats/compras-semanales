@@ -620,6 +620,10 @@ class PaulinaExtractor:
         """Extrae los ingredientes de cada receta diaria."""
         recetas = {}
 
+        # Constantes de validación
+        MAX_INGREDIENT_LENGTH = 200
+        INSTRUCTION_PATTERN = re.compile(r'^(paso|step|instruc|prepar|cocin|herv|serv)', re.I)
+
         dias_buscar = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo']
 
         for dia in dias_buscar:
@@ -673,9 +677,9 @@ class PaulinaExtractor:
                 ing = label.get_text(strip=True)
                 ing = re.sub(r'^[\[\]✓\s]+', '', ing).strip()
                 # Validar que parece un ingrediente real
-                if ing and len(ing) > 1 and len(ing) < 200:
+                if ing and len(ing) > 1 and len(ing) < MAX_INGREDIENT_LENGTH:
                     # Verificar que no sea un título, instrucción o HTML residual
-                    if not re.match(r'^(paso|step|instruc|prepar|cocin|herv|serv)', ing.lower()):
+                    if not INSTRUCTION_PATTERN.match(ing.lower()):
                         ingredientes.append(ing)
 
             # Estrategia 2: buscar li sueltos si no hay labels
@@ -683,8 +687,8 @@ class PaulinaExtractor:
                 for li in section.find_all('li'):
                     texto = li.get_text(strip=True)
                     texto = re.sub(r'^[\[\]✓\s•·\-]+', '', texto).strip()
-                    if texto and len(texto) > 1 and len(texto) < 200:
-                        if not re.match(r'^(paso|step|instruc|prepar|cocin|herv|serv)', texto.lower()):
+                    if texto and len(texto) > 1 and len(texto) < MAX_INGREDIENT_LENGTH:
+                        if not INSTRUCTION_PATTERN.match(texto.lower()):
                             ingredientes.append(texto)
 
             # Estrategia 3: buscar listas ul/ol si no hay labels ni li sueltos
@@ -693,8 +697,8 @@ class PaulinaExtractor:
                     for li in ul.find_all('li', recursive=False):
                         texto = li.get_text(strip=True)
                         texto = re.sub(r'^[\[\]✓\s•·\-]+', '', texto).strip()
-                        if texto and len(texto) > 1 and len(texto) < 200:
-                            if not re.match(r'^(paso|step|instruc|prepar|cocin|herv|serv)', texto.lower()):
+                        if texto and len(texto) > 1 and len(texto) < MAX_INGREDIENT_LENGTH:
+                            if not INSTRUCTION_PATTERN.match(texto.lower()):
                                 ingredientes.append(texto)
 
             # Deduplicar ingredientes del día
@@ -1009,6 +1013,9 @@ class PaulinaExtractor:
                 recetas = dias_filtrados
 
             # Función de normalización de ingredientes (unificada con JS)
+            # Constante de normalización
+            MAX_NORMALIZED_WORDS = 3
+            
             def _norm_ing(text):
                 import unicodedata
                 n = text.lower().strip()
@@ -1028,9 +1035,9 @@ class PaulinaExtractor:
                 # Solo caracteres alfanuméricos y espacios
                 n = re.sub(r'[^a-z\s]', ' ', n)
                 n = re.sub(r'\s+', ' ', n).strip()
-                # Limitar a 3 palabras significativas (> 1 caracter)
+                # Limitar a palabras significativas (> 1 caracter)
                 words = [w for w in n.split() if len(w) > 1]
-                return ' '.join(words[:3])
+                return ' '.join(words[:MAX_NORMALIZED_WORDS])
 
             # Categorizar ingredientes de cada día usando la lista general como referencia
             def _build_mappings(lista):
