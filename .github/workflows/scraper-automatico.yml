@@ -1,11 +1,14 @@
 name: Scraper Paulina Cocina Automatico
 
-# Ejecuta todos los sabados a las 8:00 AM Argentina (UTC-3 = 11:00 UTC)
+# Ejecucion automatica:
+#   - Lunes 10:00 AM Argentina (UTC-3 = 13:00 UTC): captura menus nuevos publicados al inicio de semana
+#   - Sabado  8:00 AM Argentina (UTC-3 = 11:00 UTC): sincronizacion semanal de respaldo
 on:
   schedule:
-    - cron: '0 11 * * 6'  # Sabados 8:00 AM Argentina
+    - cron: '0 13 * * 1'  # Lunes    10:00 AM Argentina
+    - cron: '0 11 * * 6'  # Sabados   8:00 AM Argentina
 
-  # Tambien permite ejecutar manualmente desde GitHub
+  # Permite ejecutar manualmente desde GitHub Actions > Run workflow
   workflow_dispatch:
     inputs:
       modo:
@@ -14,13 +17,13 @@ on:
         default: 'reciente'
         type: choice
         options:
-          - reciente
+          - reciente        # Semana mas reciente + especiales
           - semana_especifica
-          - todas
+          - todas           # Todas las semanas + especiales
           - rango
-          - especiales
-          - todo_completo
-          - reset
+          - especiales      # Solo menus especiales
+          - listar          # Solo muestra menus disponibles (no descarga, util para diagnostico)
+          - reset           # Backup + borrar DB + re-descargar todo
       semana:
         description: 'Numero de semana (solo si modo = semana_especifica)'
         required: false
@@ -45,14 +48,80 @@ jobs:
 
       - name: Instalar dependencias
         run: |
-          pip install requests beautifulsoup4 firebase-admin
+          pip install --upgrade requests beautifulsoup4 firebase-admin
 
-      - name: Crear archivo de credenciales
+      # ----------------------------------------------------------------
+      # Verificar que los secrets criticos estan configurados.
+      # Si faltan, falla inmediatamente con un mensaje claro en lugar de
+      # continuar y producir errores crípticos mas adelante.
+      # ----------------------------------------------------------------
+      - name: Verificar secrets configurados
+        env:
+          PAULINA_USER: ${{ secrets.PAULINA_USER }}
+          PAULINA_PASS: ${{ secrets.PAULINA_PASS }}
+          FIREBASE_CREDENTIALS: ${{ secrets.FIREBASE_CREDENTIALS }}
+        run: |
+          MODO="${{ github.event.inputs.modo }}"
+          if [ -z "$MODO" ]; then MODO="automatico"; fi
+
+          echo "🔍 Verificando configuracion para modo: $MODO"
+
+          MISSING=0
+
+          if [ -z "$PAULINA_USER" ]; then
+            echo "❌ SECRET FALTANTE: PAULINA_USER"
+            echo "   → Ir a Settings > Secrets and variables > Actions > New repository secret"
+            MISSING=1
+          else
+            echo "✅ PAULINA_USER configurado"
+          fi
+
+          if [ -z "$PAULINA_PASS" ]; then
+            echo "❌ SECRET FALTANTE: PAULINA_PASS"
+            MISSING=1
+          else
+            echo "✅ PAULINA_PASS configurado"
+          fi
+
+          if [ "$MODO" != "listar" ]; then
+            if [ -z "$FIREBASE_CREDENTIALS" ]; then
+              echo "❌ SECRET FALTANTE: FIREBASE_CREDENTIALS"
+              echo "   → Pegar el contenido de firebase_credentials.json como secret"
+              MISSING=1
+            else
+              # Verificar que es un JSON valido con el campo requerido
+              if echo "$FIREBASE_CREDENTIALS" | python3 -c "import sys,json; d=json.load(sys.stdin); assert 'project_id' in d" 2>/dev/null; then
+                PROJECT=$(echo "$FIREBASE_CREDENTIALS" | python3 -c "import sys,json; print(json.load(sys.stdin)['project_id'])")
+                echo "✅ FIREBASE_CREDENTIALS valido (proyecto: $PROJECT)"
+              else
+                echo "❌ FIREBASE_CREDENTIALS no es un JSON valido o le falta el campo project_id"
+                MISSING=1
+              fi
+            fi
+          fi
+
+          if [ "$MISSING" -eq 1 ]; then
+            echo ""
+            echo "💡 Ver SETUP_FIREBASE.md para instrucciones de configuracion"
+            exit 1
+          fi
+
+      # ----------------------------------------------------------------
+      # Crear el archivo de credenciales de Firebase.
+      # Se usa printf en lugar de echo para preservar exactamente los
+      # caracteres del JSON (incluyendo la clave privada RSA).
+      # ----------------------------------------------------------------
+      - name: Crear archivo de credenciales Firebase
+        if: ${{ github.event.inputs.modo != 'listar' }}
         env:
           FIREBASE_CREDENTIALS: ${{ secrets.FIREBASE_CREDENTIALS }}
         run: |
-          echo "$FIREBASE_CREDENTIALS" > firebase_credentials.json
+          printf '%s' "$FIREBASE_CREDENTIALS" > firebase_credentials.json
+          echo "📄 Credenciales escritas ($(wc -c < firebase_credentials.json) bytes)"
 
+      # ----------------------------------------------------------------
+      # Ejecutar el scraper segun el modo seleccionado
+      # ----------------------------------------------------------------
       - name: Ejecutar scraper
         env:
           PAULINA_USER: ${{ secrets.PAULINA_USER }}
@@ -60,54 +129,76 @@ jobs:
         run: |
           MODO="${{ github.event.inputs.modo }}"
 
-          # Si es ejecucion programada (sin inputs), usar modo todo_completo
-          # para capturar todo lo disponible y almacenarlo como histórico
+          # Si es ejecucion programada (sin inputs manuales), usar 'reciente'
           if [ -z "$MODO" ]; then
-            MODO="todo_completo"
+            MODO="reciente"
           fi
 
+          echo "🚀 Modo: $MODO"
+          echo "================================"
+
           case "$MODO" in
+
+            "listar")
+              echo "📋 Listando menus disponibles en el sitio (sin descargar)..."
+              python paulina_scraper.py --menus
+              ;;
+
             "reciente")
               echo "📅 Descargando semana mas reciente..."
               python paulina_scraper.py
+              EXIT_SEMANAL=$?
+
+              echo ""
               echo "🌟 Descargando menus especiales..."
-              python paulina_scraper.py --especiales || true
+              python paulina_scraper.py --especiales
+              EXIT_ESP=$?
+
+              # Exito si al menos uno funciono
+              if [ $EXIT_SEMANAL -ne 0 ] && [ $EXIT_ESP -ne 0 ]; then
+                echo "❌ No se pudo descargar ni la semana ni los especiales"
+                exit 1
+              fi
               ;;
+
             "semana_especifica")
               SEMANA="${{ github.event.inputs.semana }}"
-              if [ -n "$SEMANA" ]; then
-                echo "📅 Descargando semana $SEMANA..."
-                python paulina_scraper.py --semana "$SEMANA"
-              else
-                echo "❌ Error: Debes especificar un numero de semana"
+              if [ -z "$SEMANA" ]; then
+                echo "❌ Error: especifica el numero de semana en el campo 'semana'"
                 exit 1
               fi
+              echo "📅 Descargando semana $SEMANA..."
+              python paulina_scraper.py --semana "$SEMANA"
               ;;
+
             "todas")
-              echo "📅 Descargando todas las semanas disponibles..."
+              echo "📅🌟 Descargando todas las semanas disponibles + especiales..."
               python paulina_scraper.py --todas
               ;;
+
             "rango")
               RANGO="${{ github.event.inputs.rango }}"
-              if [ -n "$RANGO" ]; then
-                echo "📅 Descargando rango de semanas: $RANGO..."
-                python paulina_scraper.py --rango "$RANGO"
-              else
-                echo "❌ Error: Debes especificar un rango (ej: 3-5)"
+              if [ -z "$RANGO" ]; then
+                echo "❌ Error: especifica el rango (ej: 3-5) en el campo 'rango'"
                 exit 1
               fi
+              echo "📅 Descargando semanas $RANGO..."
+              python paulina_scraper.py --rango "$RANGO"
               ;;
+
             "especiales")
               echo "🌟 Descargando menus especiales..."
               python paulina_scraper.py --especiales
               ;;
-            "todo_completo")
-              echo "📅🌟 Descargando TODOS los menús disponibles (semanales + especiales)..."
-              python paulina_scraper.py --todas
-              ;;
+
             "reset")
-              echo "🔄 Reseteando base de datos..."
+              echo "🔄 Reseteando base de datos (backup + borrar + re-descargar todo)..."
               python paulina_scraper.py --reset-db
+              ;;
+
+            *)
+              echo "❌ Modo desconocido: $MODO"
+              exit 1
               ;;
           esac
 
@@ -115,3 +206,4 @@ jobs:
         if: always()
         run: |
           rm -f firebase_credentials.json
+          echo "🧹 Credenciales eliminadas"
