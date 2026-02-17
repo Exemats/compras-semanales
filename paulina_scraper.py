@@ -29,12 +29,16 @@ Configuración Firebase:
 import os
 import re
 import json
+import logging
 import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
 from collections import defaultdict
 from urllib.parse import urljoin, urlparse
+
+logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
+logger = logging.getLogger(__name__)
 
 # Intentar importar dependencias
 try:
@@ -181,50 +185,69 @@ class MenuDiscoverer:
             menus = []
             seen_urls = set()
 
+            # Normalizar la URL de la landing page para poder excluirla
+            landing_parsed = urlparse(cls.MENU_PAGE_URL)
+            landing_clean = f"{landing_parsed.scheme}://{landing_parsed.netloc}{landing_parsed.path.rstrip('/')}/"
+
             # Buscar links a menús
             for link in soup.find_all('a', href=True):
                 href = link['href']
 
-                # Filtrar URLs de menús
-                if '/menu/' in href or '/menu-semana' in href:
-                    # Normalizar URL
-                    full_url = urljoin(cls.MENU_PAGE_URL, href)
-                    # Remover parámetros de query
-                    parsed = urlparse(full_url)
-                    clean_url = f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
+                # Filtrar URLs de menús usando regex específica:
+                # - /menu-semana-N/  → menú semanal con número
+                # - /menu/algo/      → subpáginas del directorio /menu/
+                # Excluye /menu-semanal/ que es la landing page
+                is_menu_url = bool(
+                    re.search(r'/menu-semana-\d+', href, re.I) or
+                    re.search(r'/menu/[^/]', href, re.I) or
+                    re.search(r'/menu-especial', href, re.I) or
+                    re.search(r'/menu-[a-z]+-\d{4}', href, re.I)  # menu-nombre-año
+                )
+                if not is_menu_url:
+                    continue
 
-                    if clean_url in seen_urls:
-                        continue
-                    seen_urls.add(clean_url)
+                # Normalizar URL
+                full_url = urljoin(cls.MENU_PAGE_URL, href)
+                parsed = urlparse(full_url)
+                clean_url = f"{parsed.scheme}://{parsed.netloc}{parsed.path.rstrip('/')}/"
 
-                    # Determinar tipo y título
-                    titulo = link.get_text(strip=True) or "Menú"
+                # Excluir la landing page misma
+                if clean_url == landing_clean:
+                    continue
 
-                    # Limpiar título
-                    if not titulo or len(titulo) < 3:
-                        # Intentar extraer del URL
-                        path = parsed.path.strip('/')
-                        titulo = path.split('/')[-1].replace('-', ' ').title()
+                if clean_url in seen_urls:
+                    continue
+                seen_urls.add(clean_url)
 
-                    # Determinar tipo
-                    if 'especial' in clean_url.lower() or 'especial' in titulo.lower():
-                        tipo = 'especial'
-                    else:
-                        tipo = 'semanal'
+                # Determinar tipo y título
+                titulo = link.get_text(strip=True) or "Menú"
 
-                    # Extraer número de semana si existe
-                    semana_match = re.search(r'semana[- ]?(\d+)', clean_url, re.I)
-                    semana = int(semana_match.group(1)) if semana_match else None
+                # Limpiar título
+                if not titulo or len(titulo) < 3:
+                    # Intentar extraer del URL
+                    path = parsed.path.strip('/')
+                    titulo = path.split('/')[-1].replace('-', ' ').title()
 
-                    menus.append({
-                        'url': clean_url,
-                        'titulo': titulo,
-                        'tipo': tipo,
-                        'semana': semana
-                    })
+                # Determinar tipo
+                if 'especial' in clean_url.lower() or 'especial' in titulo.lower():
+                    tipo = 'especial'
+                else:
+                    tipo = 'semanal'
 
-            # Ordenar: primero especiales, luego por semana descendente
-            menus.sort(key=lambda x: (x['tipo'] != 'especial', -(x['semana'] or 0)))
+                # Extraer número de semana si existe (buscar en URL y título)
+                semana_match = re.search(r'semana[- ]?(\d+)', clean_url + ' ' + titulo, re.I)
+                semana = int(semana_match.group(1)) if semana_match else None
+
+                logger.debug(f"Menú encontrado: {clean_url} | tipo={tipo} | semana={semana}")
+                menus.append({
+                    'url': clean_url,
+                    'titulo': titulo,
+                    'tipo': tipo,
+                    'semana': semana
+                })
+
+            # Ordenar: semanales por número descendente, luego especiales
+            menus.sort(key=lambda x: (x['tipo'] == 'especial', -(x['semana'] or 0)))
 
             print(f"✅ Encontrados {len(menus)} menús activos")
             return menus
@@ -279,26 +302,47 @@ class PaulinaExtractor:
         self.dias_seleccionados = None  # Lista de índices (1-7) de días a incluir
 
     def detectar_semana_actual(self) -> int:
-        """Detecta qué semana está disponible (la más reciente)."""
+        """Detecta qué semana está disponible (la más reciente).
+
+        Usa MenuDiscoverer como método principal (una sola request a la landing page)
+        y cae al método de fuerza bruta solo si falla.
+        """
+        # Método rápido: descubrir desde la landing page
+        try:
+            menus = MenuDiscoverer.descubrir_menus()
+            semanales = [m for m in menus if m['tipo'] == 'semanal' and m['semana']]
+            if semanales:
+                semana = max(semanales, key=lambda x: x['semana'])['semana']
+                print(f"📅 Detectada semana {semana} como la más reciente (vía landing page)")
+                return semana
+        except Exception as e:
+            logger.warning(f"MenuDiscoverer falló: {e}")
+
+        # Fallback: fuerza bruta
         semanas = self.listar_semanas_disponibles()
         if semanas:
-            print(f"📅 Detectada semana {semanas[0]} como la más reciente")
+            print(f"📅 Detectada semana {semanas[0]} como la más reciente (vía fuerza bruta)")
             return semanas[0]
         return 1
 
     @classmethod
     def listar_semanas_disponibles(cls) -> list:
-        """Lista todas las semanas disponibles."""
+        """Lista todas las semanas disponibles probando URLs directas.
+
+        Nota: usa fuerza bruta (múltiples requests). Prefer MenuDiscoverer cuando sea posible.
+        Cubre hasta semana 52 para soportar un año completo de menús.
+        """
         disponibles = []
-        print("🔍 Buscando semanas disponibles...")
+        print("🔍 Buscando semanas disponibles (fuerza bruta)...")
         session = get_session()
-        for semana in range(20, 0, -1):
+        max_semana = 52
+        for semana in range(max_semana, 0, -1):
             url = cls.BASE_URL.format(semana=semana)
             try:
                 response = session.get(url, timeout=10)
                 if response.status_code == 200:
                     disponibles.append(semana)
-            except:
+            except Exception:
                 continue
         return disponibles
 

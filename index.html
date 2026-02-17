@@ -1949,6 +1949,10 @@
                     selectWeek(weekIds[0]);
                 }
             }
+
+            // Pre-cargar menús de Paulina en background (sin bloquear la UI)
+            // Así cuando el usuario abra el modal de importar, ya están listos
+            prefetchPaulinaMenus();
         }
 
         // ==================== MATCHING ====================
@@ -3072,6 +3076,30 @@
         // ==================== IMPORT FROM PAULINA ====================
         let pendingPaulinaData = null;  // Datos del menú cargado pendiente de importar
 
+        // Cache de menús de Paulina pre-cargados en background
+        let _cachedPaulinaMenus = null;     // Array con todos los docs de paulina_menus
+        let _cachedPaulinaMenusAt = null;   // Timestamp del último fetch
+        const PAULINA_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutos
+
+        /**
+         * Pre-carga los menús de Paulina Cocina desde Firebase en background.
+         * Se llama al arrancar la app para que al abrir el modal de importar
+         * los datos ya estén disponibles sin esperar una nueva request.
+         */
+        async function prefetchPaulinaMenus() {
+            if (!firebaseReady || !db) return;
+            try {
+                const snapshot = await db.collection('paulina_menus').get();
+                _cachedPaulinaMenus = [];
+                snapshot.forEach(doc => _cachedPaulinaMenus.push(doc.data()));
+                _cachedPaulinaMenusAt = Date.now();
+                console.log(`[Paulina] ${_cachedPaulinaMenus.length} menú(s) pre-cargado(s) en background`);
+            } catch (e) {
+                // Error silencioso: browseAvailableWeeks hará su propio fetch si es necesario
+                console.warn('[Paulina] No se pudo pre-cargar menús:', e.message || e);
+            }
+        }
+
         // ============ Modal de importación ============
 
         let selectedImportMode = null; // 'general', 'veggie', or 'platos'
@@ -3142,17 +3170,30 @@
             }
 
             try {
-                const snapshot = await db.collection('paulina_menus').get();
+                // Usar datos pre-cargados si están frescos (< 5 min), sino hacer nueva request
+                let docs;
+                const cacheIsFresh = _cachedPaulinaMenus !== null &&
+                    _cachedPaulinaMenusAt !== null &&
+                    (Date.now() - _cachedPaulinaMenusAt) < PAULINA_CACHE_TTL_MS;
+
+                if (cacheIsFresh) {
+                    docs = _cachedPaulinaMenus;
+                    console.log('[Paulina] Usando menús del cache');
+                } else {
+                    const snapshot = await db.collection('paulina_menus').get();
+                    docs = [];
+                    snapshot.forEach(doc => docs.push(doc.data()));
+                    // Actualizar cache
+                    _cachedPaulinaMenus = docs;
+                    _cachedPaulinaMenusAt = Date.now();
+                }
+
                 document.getElementById('availableWeeksLoading').style.display = 'none';
- 
-                if (snapshot.empty) {
+
+                if (docs.length === 0) {
                     document.getElementById('availableWeeksEmpty').style.display = 'block';
                     return;
                 }
- 
-                // Recolectar todos los documentos
-                const docs = [];
-                snapshot.forEach(doc => docs.push(doc.data()));
 
                 // Parsear el campo 'fechas' (ej: "09 al 13 de febrero") para obtener
                 // la fecha real del menú y clasificar como actual o histórico.
