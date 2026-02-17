@@ -1053,6 +1053,28 @@ class PaulinaExtractor:
                                 norm_to_items[norm] = []
                             norm_to_items[norm].append(item)
 
+                # Función de matching fuzzy para ingredientes
+                def _fuzzy_match(norm_ing):
+                    """Busca match parcial si no hay match exacto."""
+                    if norm_ing in norm_to_items:
+                        return norm_to_items[norm_ing]
+                    
+                    # Buscar si el ingrediente normalizado está contenido en alguna key
+                    for key, items in norm_to_items.items():
+                        if norm_ing in key or key in norm_ing:
+                            return items
+                    
+                    # Buscar por palabras compartidas (al menos 2)
+                    ing_words = set(norm_ing.split())
+                    if len(ing_words) >= 2:
+                        for key, items in norm_to_items.items():
+                            key_words = set(key.split())
+                            common = ing_words & key_words
+                            if len(common) >= 2:
+                                return items
+                    
+                    return None
+
                 # Categorizar ingredientes por día
                 for dia_key in recetas:
                     ingredientes = recetas[dia_key].get('ingredientes', [])
@@ -1067,16 +1089,39 @@ class PaulinaExtractor:
 
                 # Construir item_to_days: item texto original de lista → [días que lo usan]
                 item_to_days = {}
+                matched_count = 0
+                fuzzy_matched_count = 0
+                total_ingredients = 0
+                
                 for dia_key in recetas:
                     ingredientes = recetas[dia_key].get('ingredientes', [])
                     for ing in ingredientes:
+                        total_ingredients += 1
                         norm = _norm_ing(ing)
-                        if norm in norm_to_items:
-                            for general_item in norm_to_items[norm]:
+                        
+                        # Intentar match exacto primero
+                        matched_items = norm_to_items.get(norm)
+                        if matched_items:
+                            matched_count += 1
+                        else:
+                            # Intentar fuzzy match
+                            matched_items = _fuzzy_match(norm)
+                            if matched_items:
+                                fuzzy_matched_count += 1
+                        
+                        if matched_items:
+                            for general_item in matched_items:
                                 if general_item not in item_to_days:
                                     item_to_days[general_item] = []
                                 if dia_key not in item_to_days[general_item]:
                                     item_to_days[general_item].append(dia_key)
+
+                # Log de estadísticas de matching
+                if total_ingredients > 0:
+                    exact_pct = (matched_count / total_ingredients) * 100
+                    fuzzy_pct = (fuzzy_matched_count / total_ingredients) * 100
+                    unmapped_pct = ((total_ingredients - matched_count - fuzzy_matched_count) / total_ingredients) * 100
+                    logger.info(f"Matching stats: {matched_count} exactos ({exact_pct:.1f}%), {fuzzy_matched_count} fuzzy ({fuzzy_pct:.1f}%), {total_ingredients - matched_count - fuzzy_matched_count} sin mapear ({unmapped_pct:.1f}%)")
 
                 return ing_a_cat, item_to_days
 
