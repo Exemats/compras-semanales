@@ -919,7 +919,12 @@ class PaulinaExtractor:
 
             if not self.lista_general:
                 self.lista_general = self._extraer_lista_alternativo()
-                self.lista_veggie = self.lista_general.copy()
+
+            # Si la lista veggie está vacía pero la general existe,
+            # copiar la general como fallback (muchos menús no tienen
+            # un contenedor separado para veggie)
+            if not self.lista_veggie and self.lista_general:
+                self.lista_veggie = {k: {'orden': v['orden'], 'items': list(v['items'])} for k, v in self.lista_general.items()}
 
             # También extraer recetas por día para permitir selección de días
             self.recetas_por_dia = self._extraer_recetas_por_dia()
