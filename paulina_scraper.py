@@ -620,7 +620,11 @@ class PaulinaExtractor:
         """Extrae los ingredientes de cada receta diaria."""
         recetas = {}
 
-        dias_buscar = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes']
+        # Constantes de validación
+        MAX_INGREDIENT_LENGTH = 200
+        INSTRUCTION_PATTERN = re.compile(r'^(paso|step|instruc|prepar|cocin|herv|serv)', re.I)
+
+        dias_buscar = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo']
 
         for dia in dias_buscar:
             dia_sin_acento = dia.replace('é', 'e').replace('á', 'a')
@@ -672,15 +676,40 @@ class PaulinaExtractor:
             for label in section.find_all('label'):
                 ing = label.get_text(strip=True)
                 ing = re.sub(r'^[\[\]✓\s]+', '', ing).strip()
-                if ing and len(ing) > 1 and len(ing) < 200:
-                    ingredientes.append(ing)
+                # Validar que parece un ingrediente real
+                if ing and len(ing) > 1 and len(ing) < MAX_INGREDIENT_LENGTH:
+                    # Verificar que no sea un título, instrucción o HTML residual
+                    if not INSTRUCTION_PATTERN.match(ing.lower()):
+                        ingredientes.append(ing)
 
+            # Estrategia 2: buscar li sueltos si no hay labels
             if not ingredientes:
                 for li in section.find_all('li'):
                     texto = li.get_text(strip=True)
                     texto = re.sub(r'^[\[\]✓\s•·\-]+', '', texto).strip()
-                    if texto and len(texto) > 1 and len(texto) < 200:
-                        ingredientes.append(texto)
+                    if texto and len(texto) > 1 and len(texto) < MAX_INGREDIENT_LENGTH:
+                        if not INSTRUCTION_PATTERN.match(texto.lower()):
+                            ingredientes.append(texto)
+
+            # Estrategia 3: buscar listas ul/ol si no hay labels ni li sueltos
+            if not ingredientes:
+                for ul in section.find_all(['ul', 'ol']):
+                    for li in ul.find_all('li', recursive=False):
+                        texto = li.get_text(strip=True)
+                        texto = re.sub(r'^[\[\]✓\s•·\-]+', '', texto).strip()
+                        if texto and len(texto) > 1 and len(texto) < MAX_INGREDIENT_LENGTH:
+                            if not INSTRUCTION_PATTERN.match(texto.lower()):
+                                ingredientes.append(texto)
+
+            # Deduplicar ingredientes del día
+            seen = set()
+            ingredientes_unicos = []
+            for ing in ingredientes:
+                norm = ing.lower().strip()
+                if norm and norm not in seen:
+                    seen.add(norm)
+                    ingredientes_unicos.append(ing)
+            ingredientes = ingredientes_unicos
 
             if nombre_receta or ingredientes:
                 recetas[dia.capitalize()] = {
@@ -983,15 +1012,32 @@ class PaulinaExtractor:
                                 break
                 recetas = dias_filtrados
 
-            # Función de normalización de ingredientes
+            # Función de normalización de ingredientes (unificada con JS)
+            # Constante de normalización
+            MAX_NORMALIZED_WORDS = 3
+            
             def _norm_ing(text):
+                import unicodedata
                 n = text.lower().strip()
+                # Eliminar cantidades y unidades
                 n = re.sub(r'^[\d\s\/½¼¾,.x×]+\s*(?:g|gr|kg|ml|l|lt|lts|litros?|cdas?|cucharadas?|tazas?|unidad(?:es)?|paquetes?|latas?|sobres?)?\s*', '', n, flags=re.I)
+                # Eliminar palabras comunes de cantidad al inicio
+                n = re.sub(r'^(un|una|uno|dos|tres|cuatro|cinco|medio|media|pizca|chorro|poco|mucho)\s+', '', n, flags=re.I)
+                # Eliminar paréntesis
                 n = re.sub(r'\([^)]*\)', '', n).strip()
-                n = re.sub(r'\s+', ' ', n).strip()
-                # Remover "c/n", "a gusto" y similares del final
+                # Eliminar "c/n", "a gusto", etc.
                 n = re.sub(r'\s*(c/n|a gusto|cantidad necesaria|opcional)\s*$', '', n, flags=re.I).strip()
-                return n
+                # Eliminar acentos
+                n = unicodedata.normalize('NFD', n)
+                n = re.sub(r'[\u0300-\u036f]', '', n)
+                # Eliminar preposición "de" al inicio
+                n = re.sub(r'^de\s+', '', n)
+                # Solo caracteres alfanuméricos y espacios
+                n = re.sub(r'[^a-z\s]', ' ', n)
+                n = re.sub(r'\s+', ' ', n).strip()
+                # Limitar a palabras significativas (> 1 caracter)
+                words = [w for w in n.split() if len(w) > 1]
+                return ' '.join(words[:MAX_NORMALIZED_WORDS])
 
             # Categorizar ingredientes de cada día usando la lista general como referencia
             def _build_mappings(lista):
@@ -1014,6 +1060,28 @@ class PaulinaExtractor:
                                 norm_to_items[norm] = []
                             norm_to_items[norm].append(item)
 
+                # Función de matching fuzzy para ingredientes
+                def _fuzzy_match(norm_ing):
+                    """Busca match parcial si no hay match exacto."""
+                    if norm_ing in norm_to_items:
+                        return norm_to_items[norm_ing]
+                    
+                    # Buscar si el ingrediente normalizado está contenido en alguna key
+                    for key, items in norm_to_items.items():
+                        if norm_ing in key or key in norm_ing:
+                            return items
+                    
+                    # Buscar por palabras compartidas (al menos 2)
+                    ing_words = set(norm_ing.split())
+                    if len(ing_words) >= 2:
+                        for key, items in norm_to_items.items():
+                            key_words = set(key.split())
+                            common = ing_words & key_words
+                            if len(common) >= 2:
+                                return items
+                    
+                    return None
+
                 # Categorizar ingredientes por día
                 for dia_key in recetas:
                     ingredientes = recetas[dia_key].get('ingredientes', [])
@@ -1028,16 +1096,39 @@ class PaulinaExtractor:
 
                 # Construir item_to_days: item texto original de lista → [días que lo usan]
                 item_to_days = {}
+                matched_count = 0
+                fuzzy_matched_count = 0
+                total_ingredients = 0
+                
                 for dia_key in recetas:
                     ingredientes = recetas[dia_key].get('ingredientes', [])
                     for ing in ingredientes:
+                        total_ingredients += 1
                         norm = _norm_ing(ing)
-                        if norm in norm_to_items:
-                            for general_item in norm_to_items[norm]:
+                        
+                        # Intentar match exacto primero
+                        matched_items = norm_to_items.get(norm)
+                        if matched_items:
+                            matched_count += 1
+                        else:
+                            # Intentar fuzzy match
+                            matched_items = _fuzzy_match(norm)
+                            if matched_items:
+                                fuzzy_matched_count += 1
+                        
+                        if matched_items:
+                            for general_item in matched_items:
                                 if general_item not in item_to_days:
                                     item_to_days[general_item] = []
                                 if dia_key not in item_to_days[general_item]:
                                     item_to_days[general_item].append(dia_key)
+
+                # Log de estadísticas de matching
+                if total_ingredients > 0:
+                    exact_pct = (matched_count / total_ingredients) * 100
+                    fuzzy_pct = (fuzzy_matched_count / total_ingredients) * 100
+                    unmapped_pct = ((total_ingredients - matched_count - fuzzy_matched_count) / total_ingredients) * 100
+                    logger.info(f"Matching stats: {matched_count} exactos ({exact_pct:.1f}%), {fuzzy_matched_count} fuzzy ({fuzzy_pct:.1f}%), {total_ingredients - matched_count - fuzzy_matched_count} sin mapear ({unmapped_pct:.1f}%)")
 
                 return ing_a_cat, item_to_days
 

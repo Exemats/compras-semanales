@@ -1887,6 +1887,10 @@
         let searchFilter = ''; // Filtro de búsqueda actual
         let itemIdCounter = 0;
 
+        // ==================== CONSTANTS ====================
+        const MAX_WEEKS = 8; // Límite máximo de listas
+        const BASE_CATEGORIES = ['Ya tenés en casa ✅', 'Comodín 👑']; // Categorías base que siempre se incluyen
+
 
         // ==================== INIT ====================
         document.addEventListener('DOMContentLoaded', async function() {
@@ -1957,6 +1961,7 @@
 
         // Normalización más agresiva para detectar duplicados de ingredientes
         // Ej: "1 puré de tomate (usarás 2 cdas.)" y "1 puré de tomate (vas a usar 2 cdas.)"
+        // Normalización unificada con Python para matching consistente
         // ambos se normalizan a "pure tomate"
         function normalizeIngredient(text) {
             let normalized = text.toLowerCase()
@@ -1970,6 +1975,12 @@
 
             // Remover palabras comunes de cantidad al inicio
             normalized = normalized.replace(/^(un|una|uno|dos|tres|cuatro|cinco|medio|media|pizca|chorro|poco|mucho)\s+/gi, '');
+
+            // Remover "c/n", "a gusto", etc. al final
+            normalized = normalized.replace(/\s*(c\/n|a gusto|cantidad necesaria|opcional)\s*$/gi, '');
+
+            // Eliminar preposición "de" al inicio
+            normalized = normalized.replace(/^de\s+/i, '');
 
             // Remover caracteres especiales y números restantes
             normalized = normalized.replace(/[^a-z\s]/g, ' ');
@@ -2255,7 +2266,22 @@
                 `;
             }
 
-            container.innerHTML = html || '<div class="empty-message">No hay items</div>';
+            // Empty state message
+            if (!html) {
+                if (currentList === 'veggie') {
+                    // Check if this week has any veggie items at all
+                    const hasAnyVeggie = Object.values(items).some(item => item.listType === 'veggie');
+                    if (!hasAnyVeggie) {
+                        html = '<div class="empty-message">Esta semana no tiene lista veggie diferenciada.<br>Usá la lista General 🍖</div>';
+                    } else {
+                        html = '<div class="empty-message">No hay items</div>';
+                    }
+                } else {
+                    html = '<div class="empty-message">No hay items</div>';
+                }
+            }
+
+            container.innerHTML = html;
         }
 
         function toggleCategory(header) {
@@ -2805,6 +2831,34 @@
             }
         }
 
+        async function enforceWeekLimit() {
+            const weekIds = Object.keys(weeks);
+            if (weekIds.length <= MAX_WEEKS) return;
+
+            // Buscar semanas completamente compradas (100% tachado)
+            const completedWeeks = weekIds
+                .filter(id => {
+                    const items = weeks[id].items || {};
+                    const total = Object.keys(items).length;
+                    if (total === 0) return true; // vacía
+                    const bought = Object.values(items).filter(i => i.bought).length;
+                    return bought === total;
+                })
+                .sort((a, b) => (weeks[a].createdAt || 0) - (weeks[b].createdAt || 0));
+
+            if (completedWeeks.length > 0) {
+                // Auto-eliminar la más antigua completada
+                const oldestCompleted = completedWeeks[0];
+                const name = weeks[oldestCompleted].name;
+                await deleteWeekFromCloud(oldestCompleted);
+                delete weeks[oldestCompleted];
+                showToast(`Lista completada "${name}" eliminada automáticamente`, 'info');
+            } else {
+                // Si no hay listas completadas, avisar al usuario
+                showToast(`Tenés ${weekIds.length} listas. Considerá eliminar algunas listas completadas.`, 'warning', 5000);
+            }
+        }
+
         function updateSyncStatus(status, text) {
             const statusEl = document.getElementById('syncStatus');
             const textEl = document.getElementById('syncText');
@@ -2885,6 +2939,23 @@
             dropdown.innerHTML = weekIds.map(id => {
                 const week = weeks[id];
                 let displayName = week.name;
+
+                // Calcular progreso
+                const itemCount = Object.keys(week.items || {}).length;
+                const boughtCount = Object.values(week.items || {}).filter(i => i.bought).length;
+                const progress = itemCount > 0 ? Math.round((boughtCount / itemCount) * 100) : 0;
+
+                // Agregar indicador de progreso
+                let statusIcon = '';
+                if (itemCount === 0) {
+                    statusIcon = ' [vacía]';
+                } else if (progress === 100) {
+                    statusIcon = ' ✅';
+                } else if (progress > 50) {
+                    statusIcon = ' 🔄';
+                }
+
+                displayName += ` [${boughtCount}/${itemCount}]${statusIcon}`;
 
                 // Agregar fechas si están disponibles
                 if (week.sourceData && week.sourceData.fechas) {
@@ -3674,6 +3745,18 @@
                 }
             }
 
+            // Log de diagnóstico para items sin mapear
+            const unmapped = [];
+            for (const [cat, items] of Object.entries(sourceList)) {
+                if (!Array.isArray(items)) continue;
+                for (const item of items) {
+                    if (!itemToDays[item]) unmapped.push(item);
+                }
+            }
+            if (unmapped.length > 0) {
+                console.warn(`[buildItemToDays] ${unmapped.length} items sin mapear:`, unmapped);
+            }
+
             return itemToDays;
         }
 
@@ -3798,7 +3881,10 @@
                         } else {
                             filtered = items.filter(item => {
                                 const days = itemToDays ? itemToDays[item] : null;
-                                if (!days || days.length === 0) return true;
+                                if (!days || days.length === 0) {
+                                    // Item no mapeado a ningún día: incluir solo si está en categorías base
+                                    return BASE_CATEGORIES.includes(cat);
+                                }
                                 return days.some(d => selectedSet.has(d));
                             });
                         }
@@ -3887,12 +3973,9 @@
                 const veggieItemToDays = resolveItemToDays(data.veggie, 'veggie');
                 importWrapper.veggie = filterSourceList(data.veggie, veggieItemToDays);
                 console.log('[Import] Lista veggie:', Object.values(importWrapper.veggie).reduce((s, arr) => s + arr.length, 0), 'items');
-            } else if (hasGeneral) {
-                // Si no hay veggie separada, duplicar la general como veggie
-                // para que ambas vistas tengan contenido
-                importWrapper.veggie = importWrapper.general;
-                console.log('[Import] Lista veggie: copia de general');
             }
+            // Si no hay veggie diferenciada, no creamos una copia duplicada
+            // La UI mostrará que no hay lista veggie diferenciada
 
             // Verificar que hay algo para importar
             const totalItems = Object.values(importWrapper).reduce((total, list) =>
@@ -3995,6 +4078,19 @@
             const similarWeeks = findSimilarWeeks(data);
             if (similarWeeks.length > 0) {
                 console.log('[Import] Semanas similares encontradas:', similarWeeks);
+                const weekNames = similarWeeks.map(w => w.name).join(', ');
+                const shouldReplace = confirm(
+                    `Ya existe una lista similar: ${weekNames}\n\n` +
+                    `¿Querés reemplazarla? (Aceptar = reemplazar, Cancelar = crear nueva)`
+                );
+                if (shouldReplace) {
+                    // Eliminar las semanas similares antes de crear la nueva
+                    for (const sw of similarWeeks) {
+                        await deleteWeekFromCloud(sw.id);
+                        delete weeks[sw.id];
+                    }
+                    showToast(`Lista "${weekNames}" reemplazada`, 'info');
+                }
             }
 
             weeks[weekId] = {
@@ -4024,7 +4120,10 @@
             }
             console.log(`[Import] Total procesados: ${totalProcessed}, Importados: ${totalItems}, Duplicados: ${duplicatesSkipped}`);
             
-            // Show warning if similar weeks exist
+            // Enforce week limit (auto-cleanup old completed weeks)
+            await enforceWeekLimit();
+            
+            // Show warning if similar weeks exist (but only if not replaced)
             if (similarWeeks.length > 0) {
                 const weeksList = similarWeeks.map(w => w.name).join(', ');
                 showToast(`⚠️ Atención: Ya existe una lista similar: ${weeksList}`, 'warning', 5000);
