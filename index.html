@@ -3087,16 +3087,28 @@
          * los datos ya estén disponibles sin esperar una nueva request.
          */
         async function prefetchPaulinaMenus() {
-            if (!firebaseReady || !db) return;
+            // Carga desde el JSON estático del repo (actualizado cada miércoles por GitHub Actions)
             try {
-                const snapshot = await db.collection('paulina_menus').get();
-                _cachedPaulinaMenus = [];
-                snapshot.forEach(doc => _cachedPaulinaMenus.push(doc.data()));
+                const response = await fetch('./data/menus_database.json?v=' + Date.now());
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const dbData = await response.json();
+                _cachedPaulinaMenus = dbData.menus || [];
                 _cachedPaulinaMenusAt = Date.now();
-                console.log(`[Paulina] ${_cachedPaulinaMenus.length} menú(s) pre-cargado(s) en background`);
+                console.log(`[Paulina] ${_cachedPaulinaMenus.length} menú(s) cargado(s) desde JSON local`);
             } catch (e) {
-                // Error silencioso: browseAvailableWeeks hará su propio fetch si es necesario
-                console.warn('[Paulina] No se pudo pre-cargar menús:', e.message || e);
+                console.warn('[Paulina] No se pudo cargar menus_database.json, intentando Firebase:', e.message || e);
+                // Fallback a Firebase si el JSON local no está disponible
+                if (firebaseReady && db) {
+                    try {
+                        const snapshot = await db.collection('paulina_menus').get();
+                        _cachedPaulinaMenus = [];
+                        snapshot.forEach(doc => _cachedPaulinaMenus.push(doc.data()));
+                        _cachedPaulinaMenusAt = Date.now();
+                        console.log(`[Paulina] ${_cachedPaulinaMenus.length} menú(s) cargado(s) desde Firebase (fallback)`);
+                    } catch (e2) {
+                        console.warn('[Paulina] Fallback Firebase también falló:', e2.message || e2);
+                    }
+                }
             }
         }
 
@@ -3163,11 +3175,7 @@
             document.getElementById('availableWeeksList').innerHTML = '';
             document.getElementById('availableWeeksEmpty').style.display = 'none';
 
-            if (!firebaseReady || !db) {
-                document.getElementById('availableWeeksLoading').style.display = 'none';
-                document.getElementById('availableWeeksEmpty').style.display = 'block';
-                return;
-            }
+            // Nota: ya no se requiere Firebase para cargar menús (se usa JSON local)
 
             try {
                 // Usar datos pre-cargados si están frescos (< 5 min), sino hacer nueva request
@@ -3180,10 +3188,20 @@
                     docs = _cachedPaulinaMenus;
                     console.log('[Paulina] Usando menús del cache');
                 } else {
-                    const snapshot = await db.collection('paulina_menus').get();
-                    docs = [];
-                    snapshot.forEach(doc => docs.push(doc.data()));
-                    // Actualizar cache
+                    // Intentar desde JSON local primero
+                    try {
+                        const response = await fetch('./data/menus_database.json?v=' + Date.now());
+                        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                        const dbData = await response.json();
+                        docs = dbData.menus || [];
+                        console.log('[Paulina] Menús cargados desde JSON local');
+                    } catch (fetchErr) {
+                        console.warn('[Paulina] Usando Firebase como fallback:', fetchErr.message);
+                        if (!firebaseReady || !db) throw new Error('Firebase no disponible');
+                        const snapshot = await db.collection('paulina_menus').get();
+                        docs = [];
+                        snapshot.forEach(doc => docs.push(doc.data()));
+                    }
                     _cachedPaulinaMenus = docs;
                     _cachedPaulinaMenusAt = Date.now();
                 }
@@ -4208,5 +4226,7 @@
         }
 
     </script>
+    <!-- Visor de menús anteriores + generador de lista multi-semana -->
+    <script src="paulina-menus.js"></script>
 </body>
 </html>
