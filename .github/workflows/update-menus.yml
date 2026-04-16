@@ -1,0 +1,93 @@
+name: 🍳 Actualizar menú semanal
+
+on:
+  schedule:
+    # Todos los miércoles a las 09:00 hora Argentina (12:00 UTC)
+    - cron: '0 12 * * 3'
+  workflow_dispatch:
+    # Permite disparar manualmente desde GitHub → Actions → Run workflow
+    inputs:
+      url:
+        description: 'URL específica (opcional, deja vacío para auto-descubrir)'
+        required: false
+        default: ''
+
+jobs:
+  update-menus:
+    name: Descargar y actualizar menus_database.json
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # Para hacer git commit + push
+
+    steps:
+      # ── 1. Checkout ─────────────────────────────────────────────────────────
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      # ── 2. Python ───────────────────────────────────────────────────────────
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Instalar dependencias
+        run: pip install requests beautifulsoup4 --quiet
+
+      # ── 3. Ejecutar scraper ─────────────────────────────────────────────────
+      - name: Descargar menú semanal
+        env:
+          PAULINA_USER: ${{ secrets.PAULINA_USER }}
+          PAULINA_PASS: ${{ secrets.PAULINA_PASS }}
+        run: |
+          if [ -n "${{ github.event.inputs.url }}" ]; then
+            echo "📥 Descargando URL específica: ${{ github.event.inputs.url }}"
+            python scripts/build_menus_db.py --url "${{ github.event.inputs.url }}"
+          else
+            echo "🔍 Auto-descubriendo menús activos..."
+            python scripts/build_menus_db.py
+          fi
+
+      # ── 4. Commit y push (solo si hay cambios) ──────────────────────────────
+      - name: Commit cambios
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/
+
+          if git diff --staged --quiet; then
+            echo "✅ Sin cambios en data/ — nada que commitear"
+          else
+            FECHA=$(date +'%Y-%m-%d')
+            git commit -m "chore(menus): actualizar base de datos ${FECHA} [skip ci]"
+            git push
+            echo "🚀 Push realizado"
+          fi
+
+      # ── 5. Resumen ──────────────────────────────────────────────────────────
+      - name: Resumen
+        if: always()
+        run: |
+          echo "### 📊 Estado de menus_database.json" >> $GITHUB_STEP_SUMMARY
+          if [ -f data/menus_database.json ]; then
+            python3 - << 'EOF'
+import json, sys
+with open('data/menus_database.json') as f:
+    db = json.load(f)
+total_r = sum(sum(len(d) for d in m['dias'].values()) for m in db['menus'])
+print(f"- **Total menús:** {db['total_semanas']}")
+print(f"- **Total recetas:** {total_r}")
+print(f"- **Generado:** {db['generado'][:10]}")
+print()
+print("| Semana | Fechas | Recetas |")
+print("|--------|--------|---------|")
+for m in sorted(db['menus'], key=lambda x: x['semana'], reverse=True)[:5]:
+    r = sum(len(d) for d in m['dias'].values())
+    label = f"Especial" if m['semana'] == 0 else f"S{m['semana']}"
+    print(f"| {label} | {m['fechas']} | {r} |")
+EOF
+          else
+            echo "⚠️ data/menus_database.json no encontrado"
+          fi >> $GITHUB_STEP_SUMMARY
